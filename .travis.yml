@@ -1,0 +1,16 @@
+language: c
+os:
+  - linux
+  - osx
+notifications:
+  email: false
+script:
+  - make -j3
+deploy:
+  provider: releases
+  api_key: "$OATH_TOKEN"
+  file: "src/libRmath-julia.*"
+  file_glob: true
+  skip_cleanup: true
+  on:
+    tags: true
