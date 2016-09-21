@@ -36,7 +36,7 @@ ifeq ($(USE_DSFMT),1)
 SRCS += librandom.c randmtzig.c
 CFLAGS-add += -I$(DSFMT_includedir)
 else
-SRCS += sunif.c sexp.c snorm.c
+SRCS += callback.c
 endif
 
 default: release
