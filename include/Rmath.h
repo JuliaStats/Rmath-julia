@@ -345,6 +345,9 @@ double R_pow(double x, double y);
 double R_pow_di(double, int);
 
 	/* Random Number Generators */
+extern double (*norm_rand_ptr)(void);
+extern double (*unif_rand_ptr)(void);
+extern double (*exp_rand_ptr)(void);
 
 double	norm_rand(void);
 double	unif_rand(void);
