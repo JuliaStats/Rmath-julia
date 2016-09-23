@@ -1,6 +1,6 @@
 /*
  *  Mathlib : A C Library of Special Functions
- *  Copyright (C) 2000, 2003  The R Core Team
+ *  Copyright (C) 1998-2014  The R Core Team
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -14,28 +14,17 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, a copy is available at
- *  http://www.r-project.org/Licenses/
- *
+ *  https://www.R-project.org/Licenses/
  */
 
-/* A version of Marsaglia-MultiCarry */
-
-static unsigned int I1=1234, I2=5678;
-
-void set_seed(unsigned int i1, unsigned int i2)
-{
-    I1 = i1; I2 = i2;
-}
-
-void get_seed(unsigned int *i1, unsigned int *i2)
-{
-    *i1 = I1; *i2 = I2;
-}
+/* Private header file for use during compilation of R */
+#ifndef MATHLIB_PRIVATE2_H
+#define MATHLIB_PRIVATE2_H
 
 
-double unif_rand(void)
-{
-    I1= 36969*(I1 & 0177777) + (I1>>16);
-    I2= 18000*(I2 & 0177777) + (I2>>16);
-    return ((I1 << 16)^(I2 & 0177777)) * 2.328306437080797e-10; /* in [0,1) */
-}
+double private_rint(double x);
+extern N01type N01_kind;
+extern double BM_norm_keep;
+
+
+#endif /* MATHLIB_PRIVATE2_H */

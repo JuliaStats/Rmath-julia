@@ -14,7 +14,7 @@
  *
  *  You should have received a copy of the GNU Lesser General Public License
  *  along with this program; if not, a copy is available at
- *  http://www.r-project.org/Licenses/
+ *  https://www.R-project.org/Licenses/
  */
 
 /* Included by R.h: API on Windows */
@@ -30,7 +30,7 @@
 
 /* Don't try to include CYGWIN here: decorating some symbols breaks
    the auto-export that it relies on, even if R_DLL_BUILD were set. */
-#ifdef WIN32 /* WIN32 as does not depend on config.h */
+#ifdef _WIN32 /* _WIN32 as does not depend on config.h */
 #define LibImport __declspec(dllimport)
 #define LibExport __declspec(dllexport)
 #else

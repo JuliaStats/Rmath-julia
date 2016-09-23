@@ -1,7 +1,7 @@
 /*
  *  R : A Computer Language for Statistical Data Analysis
  *  Copyright (C) 1995, 1996  Robert Gentleman and Ross Ihaka
- *  Copyright (C) 1998--2007  The R Core Team.
+ *  Copyright (C) 1998--2016  The R Core Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Lesser General Public License
  *  along with this program; if not, a copy is available at
- *  http://www.r-project.org/Licenses/
+ *  https://www.R-project.org/Licenses/
  */
 
 /* Included by R.h: API */
@@ -23,11 +23,11 @@
 #ifndef R_ARITH_H_
 #define R_ARITH_H_
 
-/* Only for use where config.h has not already been included */
-#if defined(HAVE_GLIBC2) && !defined(_BSD_SOURCE)
-/* ensure that finite and isnan are declared */
-# define _BSD_SOURCE 1
-#endif
+/* 
+   This used to define _BSD_SOURCE to make declarations of isfinite
+   and isnan visible in glibc.  But that was deprecated in glibc 2.20,
+   and --std=c99 suffices nowadays.
+*/
 
 #include <R_ext/libextern.h>
 #ifdef  __cplusplus

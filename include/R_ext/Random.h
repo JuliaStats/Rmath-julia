@@ -1,6 +1,6 @@
 /*
  *  R : A Computer Language for Statistical Data Analysis
- *  Copyright (C) 1998-2011    The R Core Team
+ *  Copyright (C) 1998-2016    The R Core Team
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -14,7 +14,7 @@
  *
  *  You should have received a copy of the GNU Lesser General Public License
  *  along with this program; if not, a copy is available at
- *  http://www.r-project.org/Licenses/
+ *  https://www.R-project.org/Licenses/
  */
 
 /* Included by R.h: API */
@@ -22,11 +22,11 @@
 #ifndef R_RANDOM_H
 #define R_RANDOM_H
 
+#include <R_ext/Boolean.h>
+
 #ifdef  __cplusplus
 extern "C" {
 #endif
-
-#include <R_ext/Boolean.h>
 
 typedef enum {
     WICHMANN_HILL,
@@ -65,8 +65,6 @@ int * user_unif_nseed(void);
 int * user_unif_seedloc(void);
 
 double * user_norm_rand(void);
-
-void FixupProb(double *, int, int, Rboolean);
 
 #ifdef  __cplusplus
 }
