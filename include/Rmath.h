@@ -31,22 +31,22 @@
 #ifndef RMATH_H
 #define RMATH_H
 
-/* Note that on some systems you need to include math.h before the
-   defines below. If so, define this yourself. */
-#ifndef NO_C_HEADERS
 /* needed for cospi etc */
-# ifndef __STDC_WANT_IEC_60559_FUNCS_EXT__
-#  define __STDC_WANT_IEC_60559_FUNCS_EXT__ 1
-# endif
-/* See the comment in R.h */
+#ifndef __STDC_WANT_IEC_60559_FUNCS_EXT__
+# define __STDC_WANT_IEC_60559_FUNCS_EXT__ 1
+#endif
+#if defined(__cplusplus) && !defined(DO_NOT_USE_CXX_HEADERS)
+# include <cmath>
+// See comment in R.h
 # ifdef __SUNPRO_CC
-#  define DO_NOT_USE_CXX_HEADERS
+using namespace std;
 # endif
-# if defined(__cplusplus) && !defined(DO_NOT_USE_CXX_HEADERS)
-#  include <cmath>
-# else
-#  include <math.h>
-# endif
+#else
+# include <math.h>
+#endif
+
+#ifdef NO_C_HEADERS
+# warning "use of NO_C_HEADERS is defunct and will be ignored"
 #endif
 
 /*-- Mathlib as part of R --  define this for standalone : */
@@ -623,15 +623,17 @@ double  lgamma1p(double);/* accurate log(gamma(x+1)), small x (0 < x < 0.5) */
 
 /* More accurate cos(pi*x), sin(pi*x), tan(pi*x)
 
-   In future these declarations could clash with system headers if
-   someone had already included math.h with
-   __STDC_WANT_IEC_60559_FUNCS_EXT__ defined.
+   These declarations might clash with system headers if someone had
+   already included math.h with __STDC_WANT_IEC_60559_FUNCS_EXT__
+   defined (and we try, above).
    We can add a check for that via the value of
-   __STDC_IEC_60559_FUNCS__ (>= 201ymmL, exact value not yet known).
+   __STDC_IEC_60559_FUNCS__ (>= 201506L).
 */
+#if !(defined(__STDC_IEC_60559_FUNCS__) && __STDC_IEC_60559_FUNCS__ >= 201506L)
 double cospi(double);
 double sinpi(double);
 double tanpi(double);
+#endif
 
 /* Compute the log of a sum or difference from logs of terms, i.e.,
  *
@@ -658,7 +660,7 @@ double  logspace_sub(double logx, double logy);
 /* second is defined by nmath.h */
 
 /* If isnan is a macro, as C99 specifies, the C++
-   math header will undefine it. This happens on OS X */
+   math header will undefine it. This happens on macOS */
 # ifdef __cplusplus
   int R_isnancpp(double); /* in mlutils.c */
 #  define ISNAN(x)     R_isnancpp(x)
