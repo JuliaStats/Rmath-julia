@@ -1,0 +1,8 @@
+language: c
+os:
+  - linux
+  - osx
+notifications:
+  email: false
+script:
+  - make -j3
