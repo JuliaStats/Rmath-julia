@@ -1,0 +1,35 @@
+environment:
+  matrix:
+#  - ARCH: "i686"
+  - ARCH: "x86_64"
+
+# Only build on master and PR's for now, not personal branches
+# Whether or not PR's get built is determined in the webhook settings
+branches:
+
+skip_commits:
+# Add [av skip] to commit messages for docfixes, etc to reduce load on queue
+  message: /\[av skip\]/
+
+notifications:
+  - provider: Email
+    on_build_success: false
+    on_build_failure: false
+    on_build_status_changed: false
+
+# fetch repository as zip archive
+shallow_clone: true
+# set clone depth
+clone_depth: 5
+
+init:
+# Carriage returns are bad
+  - git config --global core.autocrlf input
+
+build_script:
+  - set PATH="C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\bin"
+  - make
+
+on_finish:
+# uncomment to enable RDP to Appveyor
+ - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
