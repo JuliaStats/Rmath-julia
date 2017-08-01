@@ -1,4 +1,4 @@
-RVERSION := $(shell cat RVERSION)
+RVERSION = $(shell cat RVERSION)
 
 all:
 	$(MAKE) -C src
