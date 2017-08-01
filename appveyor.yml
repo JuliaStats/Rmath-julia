@@ -3,6 +3,13 @@ environment:
 #  - ARCH: "i686"
   - ARCH: "x86_64"
 
+# Only build on master and PR's for now, not personal branches
+# Whether or not PR's get built is determined in the webhook settings
+branches:
+  only:
+    - master
+    - /^release-.*/
+
 skip_commits:
 # Add [av skip] to commit messages for docfixes, etc to reduce load on queue
   message: /\[av skip\]/
@@ -23,8 +30,8 @@ init:
   - git config --global core.autocrlf input
 
 build_script:
-  - set PATH="C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\bin"
-  - make
+  - set PATH="C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin"
+  - mingw32-make
 
 on_finish:
 # uncomment to enable RDP to Appveyor
