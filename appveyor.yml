@@ -3,10 +3,6 @@ environment:
 #  - ARCH: "i686"
   - ARCH: "x86_64"
 
-# Only build on master and PR's for now, not personal branches
-# Whether or not PR's get built is determined in the webhook settings
-branches:
-
 skip_commits:
 # Add [av skip] to commit messages for docfixes, etc to reduce load on queue
   message: /\[av skip\]/
