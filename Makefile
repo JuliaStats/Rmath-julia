@@ -1,4 +1,9 @@
-RVERSION = $(shell cat RVERSION)
+ifeq ($(OS),Windows_NT)
+  RVERSION := $(shell type RVERSION)
+else
+  RVERSION := $(shell cat RVERSION)
+endif
+
 
 all:
 	$(MAKE) -C src
