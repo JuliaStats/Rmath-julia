@@ -30,8 +30,11 @@ init:
   - git config --global core.autocrlf input
 
 build_script:
-  - set PATH="C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin"
+  - set PATH=C:\msys64\mingw64\bin;%PATH%
   - mingw32-make
+
+artifacts:
+  - path: src\libRmath-julia.dll
 
 on_finish:
 # uncomment to enable RDP to Appveyor
