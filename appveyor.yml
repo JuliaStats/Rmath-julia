@@ -30,8 +30,8 @@ init:
   - git config --global core.autocrlf input
 
 install:
-  - choco install -y mingw -params "/exception:seh /threads:win32"
-  - choco install -y mingw -x86 -params "/exception:sjlj /threads:win32"
+  - IF "%ARCH%" == "i686" (choco install -y mingw -x86 -params "/exception:sjlj /threads:win32")
+  - IF "%ARCH%" == "x86_64" (choco install -y mingw -params "/exception:seh /threads:win32")
 
 build_script:
   - set OLDPATH=%PATH%
@@ -63,4 +63,4 @@ artifacts:
 
 on_finish:
 # uncomment to enable RDP to Appveyor
-  - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
+#  - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
