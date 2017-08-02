@@ -1,11 +1,11 @@
 environment:
   matrix:
   - ARCH: "i686"
-    CCPATH: 'C:\cygwin\bin'
+    CCPATH: 'C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin'
     JULIA_URL: "https://julialangnightlies-s3.julialang.org/bin/winnt/x86/julia-latest-win32.exe"
     
   - ARCH: "x86_64"
-    CCPATH: 'C:\cygwin64\bin'
+    CCPATH: 'C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin'
     JULIA_URL: "https://julialangnightlies-s3.julialang.org/bin/winnt/x64/julia-latest-win64.exe"
 
 # Only build on master and PR's for now, not personal branches
@@ -35,10 +35,8 @@ init:
   - git config --global core.autocrlf input
 
 build_script:
-  - set OLDPATH=%PATH%
-  - set PATH=%CCPATH%
+  - set PATH=%CCPATH%;%PATH%
   - make
-  - set PATH=%OLDPATH%
 
 before_test:
 # Download most recent Julia Windows binary
@@ -52,7 +50,7 @@ before_test:
 
 test_script:
 # Run test file
-  - set PATH=
+  - set PATH= 
   - C:\projects\julia\bin\julia test.jl
 
 artifacts:
