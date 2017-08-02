@@ -1,7 +1,11 @@
 environment:
   matrix:
-#  - ARCH: "i686"
+  - ARCH: "i686"
+    CCPATH: "C:\msys64\mingw32\bin"
+    JULIA_URL: "https://julialangnightlies-s3.julialang.org/bin/winnt/x86/julia-latest-win32.exe"
   - ARCH: "x86_64"
+    CCPATH: "C:\msys64\mingw64\bin"
+    JULIA_URL: "https://julialangnightlies-s3.julialang.org/bin/winnt/x64/julia-latest-win64.exe"
 
 # Only build on master and PR's for now, not personal branches
 # Whether or not PR's get built is determined in the webhook settings
@@ -30,8 +34,22 @@ init:
   - git config --global core.autocrlf input
 
 build_script:
-  - set PATH=C:\msys64\mingw64\bin;%PATH%
+  - set PATH=%CCPATH%;%PATH%
+  - set PATH=C:\msys64\mingw32\bin;%PATH%
   - mingw32-make
+
+before_test:
+# Download most recent Julia Windows binary
+  - ps: (new-object net.webclient).DownloadFile(
+        $env:JULIA_URL,
+        "C:\projects\julia-binary.exe")
+# Run installer silently, output to C:\projects\julia
+  - C:\projects\julia-binary.exe /S /D=C:\projects\julia
+  - C:\projects\julia\bin\julia -e "versioninfo()"
+
+test_script:
+# Run test file
+  - C:\projects\julia\bin\julia test.jl
 
 artifacts:
   - path: src\libRmath-julia.dll
