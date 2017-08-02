@@ -1,5 +1,8 @@
 # -*- mode: makefile-gmake -*-
-ifneq ($(OS),Windows_NT)
+ifeq ($(OS),Windows_NT)
+  RM = cmd //C del //Q //F
+else
+  RM = rm -f
   OS = $(shell uname)
 endif
 
