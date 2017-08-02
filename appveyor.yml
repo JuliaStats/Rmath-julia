@@ -1,11 +1,11 @@
 environment:
   matrix:
   - ARCH: "i686"
-    CCPATH: 'C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin'
+    CCPATH: 'C:\tools\mingw32\bin'
     JULIA_URL: "https://julialangnightlies-s3.julialang.org/bin/winnt/x86/julia-latest-win32.exe"
     
   - ARCH: "x86_64"
-    CCPATH: 'C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin'
+    CCPATH: 'C:\tools\mingw64\bin'
     JULIA_URL: "https://julialangnightlies-s3.julialang.org/bin/winnt/x64/julia-latest-win64.exe"
 
 skip_branch_with_pr: true
@@ -29,9 +29,15 @@ init:
 # Carriage returns are bad
   - git config --global core.autocrlf input
 
+install:
+  - choco install -y mingw -params "/exception:seh /threads:win32"
+  - choco install -y mingw -x86 -params "/exception:sjlj /threads:win32"
+
 build_script:
-  - set PATH=%CCPATH%;%PATH%
+  - set OLDPATH=%PATH%
+  - set PATH=%CCPATH%
   - mingw32-make
+  - set PATH=%OLDPATH%
 
 after_build:
   - ps: $env:VERSION = If ($env:APPVEYOR_REPO_TAG -eq "true") {$env:APPVEYOR_REPO_TAG_NAME} Else {$env:APPVEYOR_REPO_COMMIT.Substring(0, 10)}
