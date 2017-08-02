@@ -1,11 +1,11 @@
 environment:
   matrix:
   - ARCH: "i686"
-    CCPATH: 'C:\msys64\mingw32\bin'
+    CCPATH: 'C:\cygwin\bin'
     JULIA_URL: "https://julialangnightlies-s3.julialang.org/bin/winnt/x86/julia-latest-win32.exe"
     
   - ARCH: "x86_64"
-    CCPATH: 'C:\msys64\mingw64\bin'
+    CCPATH: 'C:\cygwin64\bin'
     JULIA_URL: "https://julialangnightlies-s3.julialang.org/bin/winnt/x64/julia-latest-win64.exe"
 
 # Only build on master and PR's for now, not personal branches
@@ -60,4 +60,4 @@ artifacts:
 
 on_finish:
 # uncomment to enable RDP to Appveyor
-  - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
+#  - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
