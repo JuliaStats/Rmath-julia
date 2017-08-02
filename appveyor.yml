@@ -8,7 +8,12 @@ environment:
     CCPATH: 'C:\msys64\mingw64\bin'
     JULIA_URL: "https://julialangnightlies-s3.julialang.org/bin/winnt/x64/julia-latest-win64.exe"
 
-skip_branch_with_pr: true
+# Only build on master and PR's for now, not personal branches
+# Whether or not PR's get built is determined in the webhook settings
+branches:
+  only:
+    - master
+    - /^release-.*/
 
 skip_commits:
 # Add [av skip] to commit messages for docfixes, etc to reduce load on queue
@@ -33,10 +38,6 @@ build_script:
   - set PATH=%CCPATH%
   - mingw32-make
 
-after_build:
-  - ps: $env:VERSION = If ($env:APPVEYOR_REPO_TAG) {$env:APPVEYOR_REPO_TAG_NAME} Else {$env:APPVEYOR_REPO_COMMIT.Substring(0, 10)}
-  - 7z a libRmath-julia-%ARCH%-%VERSION%.zip %APPVEYOR_BUILD_FOLDER%\src\libRmath-julia.dll
-
 before_test:
 # Download most recent Julia Windows binary
   - ps: "[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12"
@@ -52,7 +53,7 @@ test_script:
   - C:\projects\julia\bin\julia test.jl
 
 artifacts:
-  - path: libRmath-julia-*.zip
+  - path: src\libRmath-julia.dll
 
 on_finish:
 # uncomment to enable RDP to Appveyor
