@@ -1,6 +1,6 @@
 # -*- mode: makefile-gmake -*-
 ifeq ($(OS),Windows_NT)
-  RM = cmd /C del /Q /F
+  RM = cmd \/C del \/Q \/F
 else
   RM = rm -f
   OS = $(shell uname)
