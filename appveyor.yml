@@ -35,7 +35,7 @@ init:
   - git config --global core.autocrlf input
 
 build_script:
-  - set PATH=%CCPATH%;%PATH%
+  - set PATH=%CCPATH%
   - mingw32-make
 
 before_test:
