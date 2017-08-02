@@ -35,8 +35,7 @@ init:
   - git config --global core.autocrlf input
 
 build_script:
-  - set PATH=%CCPATH%
-  - mingw32-make
+  - mingw32-make PATH=%CCPATH%
 
 before_test:
 # Download most recent Julia Windows binary
@@ -50,6 +49,7 @@ before_test:
 
 test_script:
 # Run test file
+  - set PATH= 
   - C:\projects\julia\bin\julia test.jl
 
 artifacts:
