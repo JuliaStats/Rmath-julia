@@ -12,4 +12,3 @@ unsafe_store!(cglobal((:exp_rand_ptr,libRmath),Ptr{Void}),
     @test ccall((:dbeta,libRmath), Float64, (Float64,Float64,Float64,Int32), 0.5, 0.1, 5.0, 0) ≈ 0.014267678091051986
     @test 0 <= ccall((:rbeta,libRmath), Float64, (Float64,Float64), 0.1, 5.0) <= 1.0
 end
-
