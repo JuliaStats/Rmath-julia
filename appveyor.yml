@@ -31,14 +31,12 @@ init:
   - ps: "[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12"
 
 install:
-#  - appveyor DownloadFile https://cygwin.com/setup-x86_64.exe -FileName C:\projects\cygwin-setup-x86_64.exe
-#  - C:\projects\cygwin-setup-x86_64.exe -q -P make,p7zip,mingw64-i686-gcc-core,mingw64-x86_64-gcc-core
+  - appveyor DownloadFile https://cygwin.com/setup-x86_64.exe -FileName C:\projects\cygwin-setup-x86_64.exe
+  - C:\projects\cygwin-setup-x86_64.exe -q -D -P make,p7zip,mingw64-i686-gcc-core,mingw64-x86_64-gcc-core
+  - set PATH=c:\cygwin64\bin;c:\cygwin64\lib\p7zip
 
 build_script:
-  - set OLDPATH=%PATH%
-  - set PATH=%CCPATH%
-  - mingw32-make
-  - set PATH=%OLDPATH%
+  - make CC=%ARCH%-w64-mingw32-gcc
 
 after_build:
   - ps: $env:VERSION = If ($env:APPVEYOR_REPO_TAG -eq "true") {$env:APPVEYOR_REPO_TAG_NAME} Else {$env:APPVEYOR_REPO_COMMIT.Substring(0, 10)}

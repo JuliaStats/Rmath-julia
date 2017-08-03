@@ -1,14 +1,7 @@
 # -*- mode: makefile-gmake -*-
 ifeq ($(OS),Windows_NT)
-  RM = cmd \/C del \/Q \/F
-else
-  RM = rm -f
   OS = $(shell uname)
 endif
-
-
-FC = gfortran
-FFLAGS-add += -O3
 
 USEGCC = 1
 USECLANG = 0
