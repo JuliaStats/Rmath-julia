@@ -1,11 +1,9 @@
 environment:
   matrix:
   - ARCH: "i686"
-    CCPATH: 'C:\tools\mingw32\bin'
     JULIA_URL: "https://julialangnightlies-s3.julialang.org/bin/winnt/x86/julia-latest-win32.exe"
     
   - ARCH: "x86_64"
-    CCPATH: 'C:\tools\mingw64\bin'
     JULIA_URL: "https://julialangnightlies-s3.julialang.org/bin/winnt/x64/julia-latest-win64.exe"
 
 skip_branch_with_pr: true
@@ -32,7 +30,7 @@ init:
 
 install:
   - appveyor DownloadFile https://cygwin.com/setup-x86_64.exe -FileName C:\projects\cygwin-setup-x86_64.exe
-  - C:\projects\cygwin-setup-x86_64.exe -q -D -P make,p7zip,mingw64-i686-gcc-core,mingw64-x86_64-gcc-core
+  - C:\projects\cygwin-setup-x86_64.exe -q -g -P make,p7zip,mingw64-i686-gcc-core,mingw64-x86_64-gcc-core
   - set PATH=c:\cygwin64\bin;c:\cygwin64\lib\p7zip
 
 build_script:

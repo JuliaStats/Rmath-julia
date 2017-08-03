@@ -1,8 +1,4 @@
-ifeq ($(OS),Windows_NT)
-  RVERSION := $(shell type RVERSION)
-else
-  RVERSION := $(shell cat RVERSION)
-endif
+RVERSION := $(shell cat RVERSION)
 
 
 all:
