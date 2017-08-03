@@ -34,15 +34,15 @@ install:
   - C:\projects\cygwin-setup-x86_64.exe -q -g -P make,mingw64-i686-gcc-core,mingw64-x86_64-gcc-core
 # Download most recent Julia Windows binary
   - appveyor DownloadFile %JULIA_URL% -FileName C:\projects\julia-binary.exe
-# Clear PATH to avoid picking up unwanted dependencies, note that a trailing space is required
-  - set PATH= 
+# Clear most of PATH to avoid picking up unwanted dependencies
+  - set PATH="C:\Program Files\7-Zip"
 
 build_script:
   - C:\cygwin64\bin\sh -lc "make -C $(cygpath $APPVEYOR_BUILD_FOLDER) CC=$ARCH-w64-mingw32-gcc"
 
 after_build:
   - ps: $env:VERSION = If ($env:APPVEYOR_REPO_TAG -eq "true") {$env:APPVEYOR_REPO_TAG_NAME} Else {$env:APPVEYOR_REPO_COMMIT.Substring(0, 10)}
-  - 'C:\Program Files\7-Zip\7z' a libRmath-julia-%ARCH%-%VERSION%.zip %APPVEYOR_BUILD_FOLDER%\src\libRmath-julia.dll
+  - 7z a libRmath-julia-%ARCH%-%VERSION%.zip %APPVEYOR_BUILD_FOLDER%\src\libRmath-julia.dll
 
 before_test:
 # Run installer silently, output to C:\projects\julia
