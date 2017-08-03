@@ -29,8 +29,12 @@ init:
   - ps: "[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12"
 
 install:
+# Download and install most recent cygwin
   - appveyor DownloadFile https://cygwin.com/setup-x86_64.exe -FileName C:\projects\cygwin-setup-x86_64.exe
   - C:\projects\cygwin-setup-x86_64.exe -q -g -P make,mingw64-i686-gcc-core,mingw64-x86_64-gcc-core
+# Download most recent Julia Windows binary
+  - appveyor DownloadFile %JULIA_URL% -FileName C:\projects\julia-binary.exe
+# Set paths to only use this cygwin
   - set PATH=C:\cygwin64\bin;"C:\Program Files\7-Zip"
 
 build_script:
@@ -41,15 +45,14 @@ after_build:
   - 7z a libRmath-julia-%ARCH%-%VERSION%.zip %APPVEYOR_BUILD_FOLDER%\src\libRmath-julia.dll
 
 before_test:
-# Download most recent Julia Windows binary
-  - appveyor DownloadFile %JULIA_URL% -FileName C:\projects\julia-binary.exe
 # Run installer silently, output to C:\projects\julia
   - C:\projects\julia-binary.exe /S /D=C:\projects\julia
   - C:\projects\julia\bin\julia -e "versioninfo()"
 
 test_script:
-# Run test file
+# Clear PATH to avoid picking up cygwin dependencies
   - set PATH= 
+# Run test file
   - C:\projects\julia\bin\julia test.jl
 
 artifacts:
