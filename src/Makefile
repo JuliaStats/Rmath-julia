@@ -23,8 +23,8 @@ default: release
 release debug: libRmath-julia.$(SHLIB_EXT)
 
 libRmath-julia.$(SHLIB_EXT): $(XOBJS)
-	rm -rf $@
+	-rm -f $@
 	$(CC) $(LDFLAGS-add) $(LDFLAGS) -shared -o $@ $^
 
 clean:
-	rm -f *.o *.do *.a *.$(SHLIB_EXT) core* *~ *#
+	-rm -f *.o *.do *.a *.$(SHLIB_EXT) core* *~ *#
