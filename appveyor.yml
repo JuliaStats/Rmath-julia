@@ -30,8 +30,8 @@ init:
 
 install:
   - appveyor DownloadFile https://cygwin.com/setup-x86_64.exe -FileName C:\projects\cygwin-setup-x86_64.exe
-  - C:\projects\cygwin-setup-x86_64.exe -q -g -P make,p7zip,mingw64-i686-gcc-core,mingw64-x86_64-gcc-core
-  - set PATH=c:\cygwin64\bin;c:\cygwin64\lib\p7zip
+  - C:\projects\cygwin-setup-x86_64.exe -q -g -P make,mingw64-i686-gcc-core,mingw64-x86_64-gcc-core
+  - set PATH=C:\cygwin64\bin;"C:\Program Files\7-Zip"
 
 build_script:
   - make CC=%ARCH%-w64-mingw32-gcc
@@ -57,4 +57,4 @@ artifacts:
 
 on_finish:
 # uncomment to enable RDP to Appveyor
-  - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
+#  - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
