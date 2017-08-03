@@ -28,10 +28,11 @@ clone_depth: 5
 init:
 # Carriage returns are bad
   - git config --global core.autocrlf input
+  - ps: "[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12"
 
 install:
-  - IF "%ARCH%" == "i686" (choco install -y mingw -x86 -params "/exception:sjlj /threads:win32")
-  - IF "%ARCH%" == "x86_64" (choco install -y mingw -params "/exception:seh /threads:win32")
+#  - appveyor DownloadFile https://cygwin.com/setup-x86_64.exe -FileName C:\projects\cygwin-setup-x86_64.exe
+#  - C:\projects\cygwin-setup-x86_64.exe -q -P make,p7zip,mingw64-i686-gcc-core,mingw64-x86_64-gcc-core
 
 build_script:
   - set OLDPATH=%PATH%
@@ -45,7 +46,6 @@ after_build:
 
 before_test:
 # Download most recent Julia Windows binary
-  - ps: "[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12"
   - ps: (new-object net.webclient).DownloadFile(
         $env:JULIA_URL,
         "C:\projects\julia-binary.exe")
@@ -63,4 +63,4 @@ artifacts:
 
 on_finish:
 # uncomment to enable RDP to Appveyor
-#  - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
+  - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
