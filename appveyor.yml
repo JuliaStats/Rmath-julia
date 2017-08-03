@@ -42,9 +42,7 @@ after_build:
 
 before_test:
 # Download most recent Julia Windows binary
-  - ps: (new-object net.webclient).DownloadFile(
-        $env:JULIA_URL,
-        "C:\projects\julia-binary.exe")
+  - appveyor DownloadFile %JULIA_URL% -FileName C:\projects\julia-binary.exe
 # Run installer silently, output to C:\projects\julia
   - C:\projects\julia-binary.exe /S /D=C:\projects\julia
   - C:\projects\julia\bin\julia -e "versioninfo()"

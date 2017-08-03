@@ -1,5 +1,5 @@
 # -*- mode: makefile-gmake -*-
-ifeq ($(OS),Windows_NT)
+ifneq ($(OS),Windows_NT)
   OS = $(shell uname)
 endif
 
