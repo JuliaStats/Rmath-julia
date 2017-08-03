@@ -35,10 +35,10 @@ install:
 # Download most recent Julia Windows binary
   - appveyor DownloadFile %JULIA_URL% -FileName C:\projects\julia-binary.exe
 # Set paths to only use this cygwin
-  - set PATH=C:\cygwin64\bin;"C:\Program Files\7-Zip"
+  - set PATH="C:\Program Files\7-Zip"
 
 build_script:
-  - make CC=%ARCH%-w64-mingw32-gcc
+  - sh -lc "make -C /cygdrive/c/projects/Rmath-julia CC=$ARCH-w64-mingw32-gcc"
 
 after_build:
   - ps: $env:VERSION = If ($env:APPVEYOR_REPO_TAG -eq "true") {$env:APPVEYOR_REPO_TAG_NAME} Else {$env:APPVEYOR_REPO_COMMIT.Substring(0, 10)}
