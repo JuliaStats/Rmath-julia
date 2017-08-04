@@ -42,7 +42,7 @@ build_script:
 
 after_build:
   - ps: $env:VERSION = If ($env:APPVEYOR_REPO_TAG -eq "true") {$env:APPVEYOR_REPO_TAG_NAME} Else {$env:APPVEYOR_REPO_COMMIT.Substring(0, 10)}
-  - 7z a libRmath-julia-%ARCH%-%VERSION%.zip %APPVEYOR_BUILD_FOLDER%\src\libRmath-julia.dll
+  - 7z a libRmath-julia-win-%ARCH%-%VERSION%.zip %APPVEYOR_BUILD_FOLDER%\src\libRmath-julia.dll
 
 before_test:
 # Run installer silently, output to C:\projects\julia
@@ -54,7 +54,7 @@ test_script:
   - C:\projects\julia\bin\julia test.jl
 
 artifacts:
-  - path: libRmath-julia-*.zip
+  - path: libRmath-julia-win-*.zip
 
 on_finish:
 # uncomment to enable RDP to Appveyor
