@@ -1,5 +1,5 @@
 using Base.Test
-const libRmath = "C:/projects/rmath-julia/src/libRmath-julia.dll"
+const libRmath = "src/libRmath-julia.$(Libdl.dlext)"
 
 unsafe_store!(cglobal((:unif_rand_ptr,libRmath),Ptr{Void}),
               cfunction(rand,Float64,()))
