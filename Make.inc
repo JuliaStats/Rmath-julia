@@ -3,6 +3,11 @@ ifneq ($(OS),Windows_NT)
   OS = $(shell uname)
 endif
 
+ifneq ($(shell echo '\#include <math.h>' | $(CC) -E - 1> /dev/null; echo $$?),0)
+$(error Required system header file math.h not found. You may need to install a system \
+    package such as build-essential on Ubuntu or Xcode command line tools on macOS.)
+endif
+
 USEGCC = 1
 USECLANG = 0
 
