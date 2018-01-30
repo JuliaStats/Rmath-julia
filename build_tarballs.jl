@@ -30,7 +30,7 @@ sources = [
 else
 sha = readstring(`git rev-list -n 1 $(ENV["TRAVIS_TAG"])`)
 sources = [
-    "git@github.com:JuliaStats/Rmath-julia.git" =>
+    "https://github.com/JuliaStats/Rmath-julia.git" =>
     ENV["TRAVIS_TAG"],
 ]
 end
