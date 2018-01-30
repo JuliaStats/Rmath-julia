@@ -22,6 +22,7 @@ script:
 jobs:
   include:
     - stage: deploy
+      if: tag IS present
       julia: 0.6
       sudo: required
       before_script:

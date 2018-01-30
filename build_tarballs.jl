@@ -20,11 +20,19 @@ if length(ARGS) > 0
 end
 info("Building for $(join(triplet.(platforms), ", "))")
 
-# Collection of sources required to build rmath
+# Collection of sources required to build rmath.
+# On travis we build a tagged release by default.
+if isempty(get(ENV, TRAVIS_TAG, ""))
 sources = [
     "https://github.com/JuliaLang/Rmath-julia/archive/v0.2.0.tar.gz" =>
     "087ada2913c5401c5772cde1606f9924dcb159f1c9d755630dcce350ef8036ac",
 ]
+else
+sources = [
+    "git@github.com:JuliaStats/Rmath-julia.git" =>
+    ENV["TRAVIS_TAG"],
+]
+end
 
 script = raw"""
 cd $WORKSPACE/srcdir
