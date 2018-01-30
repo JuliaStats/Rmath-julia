@@ -1,4 +1,7 @@
 using Base.Test
+if VERSION >= v"0.7.0-DEV.3382"
+    import Libdl
+end
 const libRmath = "src/libRmath-julia.$(Libdl.dlext)"
 
 unsafe_store!(cglobal((:unif_rand_ptr,libRmath),Ptr{Void}),
