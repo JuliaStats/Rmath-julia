@@ -1,13 +1,16 @@
 # -*- mode: makefile-gmake -*-
-ifneq ($(OS),WINNT)
+ifneq ($(OS),Windows_NT)
   OS = $(shell uname)
 endif
 
 ifneq (,$(findstring MINGW,$(OS)))
-override OS := WINNT
+override OS := Windows_NT
 endif
 ifneq (,$(findstring MSYS,$(OS)))
-override OS := WINNT
+override OS := Windows_NT
+endif
+ifneq (,$(findstring CYGWIN,$(OS)))
+override OS := Windows_NT
 endif
 
 USEGCC = 1
@@ -48,7 +51,7 @@ CFLAGS-add+=-fPIC
 FFLAGS-add+=-fPIC
 endif
 
-ifeq ($(OS), WINNT)
+ifeq ($(OS), Windows_NT)
 SHLIB_EXT = dll
 endif
 
