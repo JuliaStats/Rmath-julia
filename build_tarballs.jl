@@ -23,21 +23,19 @@ info("Building for $(join(triplet.(platforms), ", "))")
 # Collection of sources required to build rmath.
 # On travis we build a tagged release by default.
 if isempty(get(ENV, "TRAVIS_TAG", ""))
-sources = [
-    "https://github.com/JuliaLang/Rmath-julia/archive/v0.2.0.tar.gz" =>
-    "087ada2913c5401c5772cde1606f9924dcb159f1c9d755630dcce350ef8036ac",
-]
+warn("Building local HEAD. This is not recommended for reproducible builds")
+sha = strip(readstring(`git rev-list -n 1 HEAD`))
 else
 sha = strip(readstring(`git rev-list -n 1 $(ENV["TRAVIS_TAG"])`))
+end
 sources = [
     "https://github.com/JuliaStats/Rmath-julia.git" =>
     sha,
 ]
-end
 
 script = raw"""
 cd $WORKSPACE/srcdir
-cd Rmath-julia-0.2.0/
+cd Rmath-julia/
 make
 if [[ ${target} == *-mingw32 ]]; then
     mkdir $DESTDIR/bin
