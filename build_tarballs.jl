@@ -28,7 +28,7 @@ sources = [
     "087ada2913c5401c5772cde1606f9924dcb159f1c9d755630dcce350ef8036ac",
 ]
 else
-sha = readstring(`git rev-list -n 1 $(ENV["TRAVIS_TAG"])`)
+sha = strip(readstring(`git rev-list -n 1 $(ENV["TRAVIS_TAG"])`))
 sources = [
     "https://github.com/JuliaStats/Rmath-julia.git" =>
     sha,
