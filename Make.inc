@@ -13,8 +13,7 @@ ifneq (,$(findstring CYGWIN,$(OS)))
 override OS := Windows_NT
 endif
 
-CSTD = -std=gnu99
-CFLAGS = -Wall -O3
+CFLAGS_add = -std=gnu99 -Wall -O3
 
 ifeq ($(OS), Linux)
 SHLIB_EXT = so

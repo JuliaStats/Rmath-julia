@@ -13,9 +13,9 @@ endif
 default: release
 
 %.o: %.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(CSTD) $(fPIC) -DMATHLIB_STANDALONE -I../include -DNDEBUG -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(CFLAGS_add) $(fPIC) -DMATHLIB_STANDALONE -I../include -DNDEBUG -c $< -o $@
 %.do: %.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(CSTD) $(fPIC) -DMATHLIB_STANDALONE -I../include -g -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(CFLAGS_add) $(fPIC) -DMATHLIB_STANDALONE -I../include -g -c $< -o $@
 
 release debug: libRmath-julia.$(SHLIB_EXT)
 
