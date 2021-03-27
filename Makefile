@@ -9,7 +9,7 @@ clean:
 	rm -rf R-*
 
 R-$(RVERSION).tar.gz:
-	wget https://cran.r-project.org/src/base/R-3/$@
+	wget https://cran.r-project.org/src/base/R-4/$@
 
 update: R-$(RVERSION).tar.gz
 	tar -xzvf $< --strip-components 3 -C src --include '*/src/nmath/*.[ch]' \
