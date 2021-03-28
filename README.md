@@ -1,9 +1,7 @@
 Rmath-julia
 ===========
 
-[![AppVeyor](https://ci.appveyor.com/api/projects/status/abe27g810i5ep6aq/branch/master?svg=true)](https://ci.appveyor.com/project/simonbyrne/rmath-julia/branch/master)
-[![Travis](https://travis-ci.org/JuliaStats/Rmath-julia.svg?branch=master)](https://travis-ci.org/JuliaStats/Rmath-julia)
-
+[![CI](https://github.com/JuliaStats/Rmath-julia/actions/workflows/CI.yml/badge.svg)](https://github.com/JuliaStats/Rmath-julia/actions/workflows/CI.yml)
 This is a slightly modified version of the [standalone Rmath library from R](https://cran.r-project.org/doc/manuals/r-release/R-admin.html#The-standalone-Rmath-library), built to be
 used with the [Rmath.jl](https://github.com/JuliaStats/Rmath.jl) Julia package.
 
