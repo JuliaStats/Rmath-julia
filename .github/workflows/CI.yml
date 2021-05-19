@@ -28,6 +28,6 @@ jobs:
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
-      - run: apt install libarchive-tools
+      - run: sudo apt install libarchive-tools
       - run: make update && make -j 3
       - run: julia test.jl
