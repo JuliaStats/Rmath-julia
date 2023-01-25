@@ -1,6 +1,6 @@
 /*
  *  R : A Computer Language for Statistical Data Analysis
- *  Copyright (C) 1999-2016 The R Core Team.
+ *  Copyright (C) 1999-2022 The R Core Team.
  *
  *  This header file is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +21,7 @@
  *  https://www.R-project.org/Licenses/
  */
 
-/* Included by R.h: API */
+/* Included by R.h: mainly API */
 
 #ifndef R_RS_H
 #define R_RS_H
@@ -42,25 +42,6 @@
 extern "C" {
 #endif
 
-/* S Like Error Handling */
-
-#include <R_ext/Error.h>	/* for error and warning */
-
-#ifndef STRICT_R_HEADERS
-
-#define R_PROBLEM_BUFSIZE	4096
-/* Parentheses added for FC4 with gcc4 and -D_FORTIFY_SOURCE=2 */
-#define PROBLEM			{char R_problem_buf[R_PROBLEM_BUFSIZE];(sprintf)(R_problem_buf,
-#define MESSAGE                 {char R_problem_buf[R_PROBLEM_BUFSIZE];(sprintf)(R_problem_buf,
-#define ERROR			),error(R_problem_buf);}
-#define RECOVER(x)		),error(R_problem_buf);}
-#define WARNING(x)		),warning(R_problem_buf);}
-#define LOCAL_EVALUATOR		/**/
-#define NULL_ENTRY		/**/
-#define WARN			WARNING(NULL)
-
-#endif
-
 /* S Like Memory Management */
 
 extern void *R_chk_calloc(R_SIZE_T, R_SIZE_T);
@@ -68,21 +49,25 @@ extern void *R_chk_realloc(void *, R_SIZE_T);
 extern void R_chk_free(void *);
 
 #ifndef STRICT_R_HEADERS
-/* S-PLUS 3.x but not 5.x NULLs the pointer in the following */
+/* S-PLUS 3.x but not 5.x NULLed the pointer in Free */
 #define Calloc(n, t)   (t *) R_chk_calloc( (R_SIZE_T) (n), sizeof(t) )
 #define Realloc(p,n,t) (t *) R_chk_realloc( (void *)(p), (R_SIZE_T)((n) * sizeof(t)) )
 #define Free(p)        (R_chk_free( (void *)(p) ), (p) = NULL)
 #endif
+    
 #define R_Calloc(n, t)   (t *) R_chk_calloc( (R_SIZE_T) (n), sizeof(t) )
 #define R_Realloc(p,n,t) (t *) R_chk_realloc( (void *)(p), (R_SIZE_T)((n) * sizeof(t)) )
 #define R_Free(p)      (R_chk_free( (void *)(p) ), (p) = NULL)
 
+/* undocumented until 4.1.2: widely used. */
 #define Memcpy(p,q,n)  memcpy( p, q, (R_SIZE_T)(n) * sizeof(*p) )
 
-/* added for 3.0.0 */
+/* added for 3.0.0 but undocumented until 4.1.2.
+   Used by a couple of packages. */
 #define Memzero(p,n)  memset(p, 0, (R_SIZE_T)(n) * sizeof(*p))
 
-#define CallocCharBuf(n) (char *) R_chk_calloc((R_SIZE_T) ((n)+1), sizeof(char))
+/* Added in R 2.6.0 */
+#define CallocCharBuf(n) (char *) R_chk_calloc(((R_SIZE_T)(n))+1, sizeof(char))
 
 /* S Like Fortran Interface */
 /* These may not be adequate everywhere. Convex had _ prepending common
@@ -98,9 +83,11 @@ extern void R_chk_free(void *);
 #define F77_COM(x)     F77_CALL(x)
 #define F77_COMDECL(x) F77_CALL(x)
 
-#ifndef NO_CALL_R
+/* Depreacated in R 2.15.0, non-API
+#if !defined(NO_CALL_R) && defined(DECLARE_LEGACY_CALL_R)
 void	call_R(char*, long, void**, char**, long*, char**, long, char**);
 #endif
+*/
 
 #ifdef  __cplusplus
 }
