@@ -1,6 +1,6 @@
 /* -*- C -*-
  *  Mathlib : A C Library of Special Functions
- *  Copyright (C) 1998-2016  The R Core Team
+ *  Copyright (C) 1998-2022  The R Core Team
  *  Copyright (C) 2004       The R Foundation
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -26,6 +26,7 @@
    and nothing else.
 
    It is part of the API and supports 'standalone Rmath'.
+   Some entries possibly are not yet documented in 'Writing R Extensions'.
 
 */
 #ifndef RMATH_H
@@ -35,12 +36,9 @@
 #ifndef __STDC_WANT_IEC_60559_FUNCS_EXT__
 # define __STDC_WANT_IEC_60559_FUNCS_EXT__ 1
 #endif
+
 #if defined(__cplusplus) && !defined(DO_NOT_USE_CXX_HEADERS)
 # include <cmath>
-// See comment in R.h
-# ifdef __SUNPRO_CC
-using namespace std;
-# endif
 #else
 # include <math.h>
 #endif
@@ -54,41 +52,25 @@ using namespace std;
 
 #define R_VERSION_STRING "@PACKAGE_VERSION@"
 
+// Legacy defines -- C99 functions which R >= 3.5.0 requires
 #ifndef HAVE_EXPM1
-@RMATH_HAVE_EXPM1@
+# define HAVE_EXPM1 1
 #endif
-
 #ifndef HAVE_HYPOT
-@RMATH_HAVE_HYPOT@
+# define HAVE_HYPOT 1
 #endif
-
 #ifndef HAVE_LOG1P
-@RMATH_HAVE_LOG1P@
+# define HAVE_LOG1P 1
 #endif
 
 #ifndef HAVE_WORKING_LOG1P
 @RMATH_HAVE_WORKING_LOG1P@
 #endif
 
-#if defined(HAVE_LOG1P) && !defined(HAVE_WORKING_LOG1P)
+#if !defined(HAVE_WORKING_LOG1P)
 /* remap to avoid problems with getting the right entry point */
 double  Rlog1p(double);
 #define log1p Rlog1p
-#endif
-
-
-	/* Undo SGI Madness */
-
-#ifdef __sgi
-# ifdef ftrunc
-#  undef ftrunc
-# endif
-# ifdef qexp
-#  undef qexp
-# endif
-# ifdef qgamma
-#  undef qgamma
-# endif
 #endif
 
 
@@ -270,6 +252,7 @@ double  Rlog1p(double);
 #define lgammafn	Rf_lgammafn
 #define lgammafn_sign	Rf_lgammafn_sign
 #define lgamma1p	Rf_lgamma1p
+#define log1mexp       	Rf_log1mexp
 #define log1pexp       	Rf_log1pexp
 #define log1pmx		Rf_log1pmx
 #define logspace_add	Rf_logspace_add
@@ -302,7 +285,6 @@ double  Rlog1p(double);
 #define pt		Rf_pt
 #define ptukey		Rf_ptukey
 #define punif		Rf_punif
-#define pythag		Rf_pythag
 #define pweibull	Rf_pweibull
 #define pwilcox		Rf_pwilcox
 #define qbeta		Rf_qbeta
@@ -378,6 +360,7 @@ double R_pow_di(double, int);
 
 double	norm_rand(void);
 double	unif_rand(void);
+double  R_unif_index(double);
 double	exp_rand(void);
 #ifdef MATHLIB_STANDALONE
 void	set_seed(unsigned int, unsigned int);
@@ -406,9 +389,11 @@ double	pgamma(double, double, double, int, int);
 double	qgamma(double, double, double, int, int);
 double	rgamma(double, double);
 
-double  log1pmx(double);
+double  log1pmx(double); /* Accurate log(1+x) - x, {care for small x} */
 double  log1pexp(double); // <-- ../nmath/plogis.c
-double  lgamma1p(double);
+double  log1mexp(double);
+double  lgamma1p(double);/* accurate log(gamma(x+1)), small x (0 < x < 0.5) */
+
 double  logspace_add(double, double);
 double  logspace_sub(double, double);
 double  logspace_sum(const double *, int);
@@ -463,7 +448,7 @@ double	pbinom(double, double, double, int, int);
 double	qbinom(double, double, double, int, int);
 double	rbinom(double, double);
 
-	/* Multnomial Distribution */
+	/* Multinomial Distribution */
 
 void	rmultinom(int, double*, int, int*);
 
@@ -559,13 +544,14 @@ double dwilcox(double, double, double, int);
 double pwilcox(double, double, double, int, int);
 double qwilcox(double, double, double, int, int);
 double rwilcox(double, double);
-
+void wilcox_free(void);
 	/* Wilcoxon Signed Rank Distribution */
 
 double dsignrank(double, double, int);
 double psignrank(double, double, int, int);
 double qsignrank(double, double, int, int);
 double rsignrank(double);
+void signrank_free(void);
 
 	/* Gamma and Related Functions */
 double	gammafn(double);
@@ -598,16 +584,6 @@ double	bessel_y_ex(double, double, double *);
 
 	/* General Support Functions */
 
-#ifndef HAVE_HYPOT
-double 	hypot(double, double);
-#endif
-double 	pythag(double, double);
-#ifndef HAVE_EXPM1
-double  expm1(double); /* = exp(x)-1 {care for small x} */
-#endif
-#ifndef HAVE_LOG1P
-double  log1p(double); /* = log(1+x) {care for small x} */
-#endif
 int	imax2(int, int);
 int	imin2(int, int);
 double	fmax2(double, double);
@@ -618,22 +594,19 @@ double	fround(double, double);
 double	fsign(double, double);
 double	ftrunc(double);
 
-double  log1pmx(double); /* Accurate log(1+x) - x, {care for small x} */
-double  lgamma1p(double);/* accurate log(gamma(x+1)), small x (0 < x < 0.5) */
-
 /* More accurate cos(pi*x), sin(pi*x), tan(pi*x)
 
    These declarations might clash with system headers if someone had
    already included math.h with __STDC_WANT_IEC_60559_FUNCS_EXT__
    defined (and we try, above).
-   We can add a check for that via the value of
-   __STDC_IEC_60559_FUNCS__ (>= 201506L).
+   We check for that via the value of __STDC_IEC_60559_FUNCS__
 */
 #if !(defined(__STDC_IEC_60559_FUNCS__) && __STDC_IEC_60559_FUNCS__ >= 201506L)
 double cospi(double);
 double sinpi(double);
 double tanpi(double);
 #endif
+double Rtanpi(double); /* our own in any case */
 
 /* Compute the log of a sum or difference from logs of terms, i.e.,
  *
@@ -647,14 +620,6 @@ double  logspace_sub(double logx, double logy);
 
 
 /* ----------------- Private part of the header file ------------------- */
-
-	/* old-R Compatibility */
-
-#ifdef OLD_RMATH_COMPAT
-# define snorm	norm_rand
-# define sunif	unif_rand
-# define sexp	exp_rand
-#endif
 
 #if defined(MATHLIB_STANDALONE) && !defined(MATHLIB_PRIVATE_H)
 /* second is defined by nmath.h */

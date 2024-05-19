@@ -1,7 +1,7 @@
 /*
  *  Mathlib : A C Library of Special Functions
+ *  Copyright (C) 2000-2019 The R Core Team
  *  Copyright (C) 1998 Ross Ihaka
- *  Copyright (C) 2000-2014 The R Core Team
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -38,17 +38,6 @@
 #include <config.h>
 #include "nmath.h"
 
-
-/*  nearbyint is C99, so all platforms should have it (and AFAIK, all do) */
-#ifdef HAVE_NEARBYINT
-# define R_rint nearbyint
-#elif defined(HAVE_RINT)
-# define R_rint rint
-#else
-# define R_rint private_rint
-# include "nmath2.h" // for private_rint
-#endif
-
 /* Improvements by Martin Maechler, May 1997;
    further ones, Feb.2000:
    Replace  pow(x, (double)i) by  R_pow_di(x, i) {and use  int dig} */
@@ -65,13 +54,13 @@
        --MM--
      */
 
-
+// R's  signif(x, digits)   via   Math2(args, fprec) in  ../main/arithmetic.c :
 double fprec(double x, double digits)
 {
     double l10, pow10, sgn, p10, P10;
     int e10, e2, do_round, dig;
-    /* Max.expon. of 10 (=308.2547) */
-    const static int max10e = (int) (DBL_MAX_EXP * M_LOG10_2);
+    // Max.expon. of 10 (w/o denormalizing or overflow; = R's  trunc( log10(.Machine$double.xmax) )
+    const static int max10e = (int) DBL_MAX_10_EXP; // == 308 ("IEEE")
 
     if (ISNAN(x) || ISNAN(digits))
 	return x + digits;
@@ -99,14 +88,14 @@ double fprec(double x, double digits)
 	if(e10 > max10e) { /* numbers less than 10^(dig-1) * 1e-308 */
 	    p10 =  R_pow_di(10., e10-max10e);
 	    e10 = max10e;
-	} 
+	}
 	if(e10 > 0) { /* Try always to have pow >= 1
 			 and so exactly representable */
 	    pow10 = R_pow_di(10., e10);
-	    return(sgn*(R_rint((x*pow10)*p10)/pow10)/p10);
+	    return(sgn*(nearbyint((x*pow10)*p10)/pow10)/p10);
 	} else {
 	    pow10 = R_pow_di(10., -e10);
-	    return(sgn*(R_rint((x/pow10))*pow10));
+	    return(sgn*(nearbyint((x/pow10))*pow10));
 	}
     } else { /* -- LARGE or small -- */
 	do_round = max10e - l10	 >= R_pow_di(10., -dig);

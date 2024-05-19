@@ -1,6 +1,6 @@
 /*
  *  AUTHOR
- *    Claus Ekstrøm, ekstrom@dina.kvl.dk
+ *    Claus EkstrÃ¸m, ekstrom@dina.kvl.dk
  *    July 15, 2003.
  *
  *  Merge in to R:
@@ -71,7 +71,7 @@ double dnt(double x, double df, double ncp, int give_log)
 #endif
 
     /* If non-positive df then error */
-    if (df <= 0.0) ML_ERR_return_NAN;
+    if (df <= 0.0) ML_WARN_return_NAN;
 
     if(ncp == 0.0) return dt(x, df, give_log);
 

@@ -1,6 +1,6 @@
 /*
  *  Mathlib : A C Library of Special Functions
- *  Copyright (C) 1998-2016  The R Core Team
+ *  Copyright (C) 1998-2022  The R Core Team
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -53,12 +53,12 @@ double	Rf_gamma_cody(double);
 #include <R_ext/Print.h>
 
 /* moved from dpq.h */
-#ifdef HAVE_NEARYINT
-# define R_forceint(x)   nearbyint()
+#ifdef HAVE_NEARBYINT
+# define R_forceint(x)   nearbyint(x)
 #else
 # define R_forceint(x)   round(x)
 #endif
-//R >= 3.1.0: # define R_nonint(x) 	  (fabs((x) - R_forceint(x)) > 1e-7)
+//R >= 3.1.0:  previously, was defined as  (fabs((x) - R_forceint(x)) > 1e-7)
 # define R_nonint(x) 	  (fabs((x) - R_forceint(x)) > 1e-7*fmax2(1., fabs(x)))
 
 #ifndef MATHLIB_STANDALONE
@@ -70,6 +70,7 @@ double	Rf_gamma_cody(double);
 # define MATHLIB_WARNING3(fmt,x,x2,x3)	warning(fmt,x,x2,x3)
 # define MATHLIB_WARNING4(fmt,x,x2,x3,x4) warning(fmt,x,x2,x3,x4)
 # define MATHLIB_WARNING5(fmt,x,x2,x3,x4,x5) warning(fmt,x,x2,x3,x4,x5)
+# define MATHLIB_WARNING6(fmt,x,x2,x3,x4,x5,x6) warning(fmt,x,x2,x3,x4,x5,x6)
 
 #include <R_ext/Arith.h>
 #define ML_POSINF	R_PosInf
@@ -107,6 +108,7 @@ void R_CheckUserInterrupt(void);
 #define MATHLIB_WARNING3(fmt,x,x2,x3)	printf(fmt,x,x2,x3)
 #define MATHLIB_WARNING4(fmt,x,x2,x3,x4) printf(fmt,x,x2,x3,x4)
 #define MATHLIB_WARNING5(fmt,x,x2,x3,x4,x5) printf(fmt,x,x2,x3,x4,x5)
+#define MATHLIB_WARNING6(fmt,x,x2,x3,x4,x5,x6) printf(fmt,x,x2,x3,x4,x5,x6)
 
 #define ISNAN(x) (isnan(x)!=0)
 // Arith.h defines it
@@ -142,13 +144,14 @@ int R_finite(double);
 #define ME_UNDERFLOW	16
 /*	and underflow occured (important for IEEE)*/
 
-#define ML_ERR_return_NAN { ML_ERROR(ME_DOMAIN, ""); return ML_NAN; }
 
-/* For a long time prior to R 2.3.0 ML_ERROR did nothing.
+#define ML_WARN_return_NAN { ML_WARNING(ME_DOMAIN, ""); return ML_NAN; }
+
+/* For a long time prior to R 2.3.0 ML_WARNING did nothing.
    We don't report ME_DOMAIN errors as the callers collect ML_NANs into
    a single warning.
  */
-#define ML_ERROR(x, s) { \
+#define ML_WARNING(x, s) { \
    if(x > ME_DOMAIN) { \
        char *msg = ""; \
        switch(x) { \
@@ -186,6 +189,7 @@ int R_finite(double);
 
 /* always remap internal functions */
 #define bd0       	Rf_bd0
+#define ebd0       	Rf_ebd0
 #define chebyshev_eval	Rf_chebyshev_eval
 #define chebyshev_init	Rf_chebyshev_init
 #define gammalims	Rf_gammalims
@@ -212,6 +216,7 @@ double  attribute_hidden stirlerr(double);  /* Stirling expansion "error" */
 double	attribute_hidden lfastchoose(double, double);
 
 double  attribute_hidden bd0(double, double);
+void    attribute_hidden ebd0(double, double, double*, double*);
 
 double  attribute_hidden pnchisq_raw(double, double, double, double, double,
 				     int, Rboolean, Rboolean);

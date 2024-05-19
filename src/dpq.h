@@ -1,6 +1,6 @@
 /*
  *  R : A Computer Language for Statistical Data Analysis
- *  Copyright (C) 2000--2015 The  R Core Team
+ *  Copyright (C) 2000--2021 The  R Core Team
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -68,7 +68,7 @@
 #define R_Q_P01_check(p)			\
     if ((log_p	&& p > 0) ||			\
 	(!log_p && (p < 0 || p > 1)) )		\
-	ML_ERR_return_NAN
+	ML_WARN_return_NAN
 
 /* Do the boundaries exactly for q*() functions :
  * Often  _LEFT_ = ML_NEGINF , and very often _RIGHT_ = ML_POSINF;
@@ -84,7 +84,7 @@
 #define R_Q_P01_boundaries(p, _LEFT_, _RIGHT_)		\
     if (log_p) {					\
 	if(p > 0)					\
-	    ML_ERR_return_NAN;				\
+	    ML_WARN_return_NAN;				\
 	if(p == 0) /* upper bound*/			\
 	    return lower_tail ? _RIGHT_ : _LEFT_;	\
 	if(p == ML_NEGINF)				\
@@ -92,7 +92,7 @@
     }							\
     else { /* !log_p */					\
 	if(p < 0 || p > 1)				\
-	    ML_ERR_return_NAN;				\
+	    ML_WARN_return_NAN;				\
 	if(p == 0)					\
 	    return lower_tail ? _LEFT_ : _RIGHT_;	\
 	if(p == 1)					\
@@ -114,6 +114,8 @@
 
 /* additions for density functions (C.Loader) */
 #define R_D_fexp(f,x)     (give_log ? -0.5*log(f)+(x) : exp(x)/sqrt(f))
+// version working with rf := sqrt(f) [avoiding overflow in computation of f in the caller]
+#define R_D_rtxp(rf,x)    (give_log ? -log(rf)+(x) : exp(x)/(rf))
 
 /* [neg]ative or [non int]eger : */
 #define R_D_negInonint(x) (x < 0. || R_nonint(x))

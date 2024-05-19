@@ -4,11 +4,11 @@
  *    October 23, 2000.
  *
  *  Merge in to R:
- *	Copyright (C) 2000-2016 The R Core Team
+ *	Copyright (C) 2000-2021 The R Core Team
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 3 of the License, or
+ *  the Free Software Foundation; either version 2 of the License, or
  *  (at your option) any later version.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -35,6 +35,10 @@
 #include "nmath.h"
 #include "dpq.h"
 
+#define M_SQRT_2PI	2.50662827463100050241576528481104525301  /* sqrt(2*pi) */
+// sqrt(2 * Rmpfr::Const("pi", 128))
+#define x_LRG           2.86111748575702815380240589208115399625e+307 /* = 2^1023 / pi */
+
 // called also from dgamma.c, pgamma.c, dnbeta.c, dnbinom.c, dnchisq.c :
 double dpois_raw(double x, double lambda, int give_log)
 {
@@ -51,7 +55,17 @@ double dpois_raw(double x, double lambda, int give_log)
 	// else
 	return(R_D_exp(-lambda + x*log(lambda) -lgammafn(x+1)));
     }
-    return(R_D_fexp( M_2PI*x, -stirlerr(x)-bd0(x,lambda) ));
+    // R <= 4.0.x  had   return(R_D_fexp( M_2PI*x, -stirlerr(x)-bd0(x,lambda) ));
+    double yh, yl;
+    ebd0 (x, lambda, &yh, &yl);
+    yl += stirlerr(x);
+    Rboolean Lrg_x = (x >= x_LRG); //really large x  <==>  2*pi*x  overflows
+    double r = Lrg_x
+	? M_SQRT_2PI * sqrt(x) // sqrt(.): avoid overflow for very large x
+	: M_2PI * x;
+    return give_log
+	? -yl - yh - (Lrg_x ? log(r) : 0.5 * log(r))
+	: exp(-yl) * exp(-yh) / (Lrg_x ? r : sqrt(r));
 }
 
 double dpois(double x, double lambda, int give_log)
@@ -61,7 +75,7 @@ double dpois(double x, double lambda, int give_log)
         return x + lambda;
 #endif
 
-    if (lambda < 0) ML_ERR_return_NAN;
+    if (lambda < 0) ML_WARN_return_NAN;
     R_D_nonint_check(x);
     if (x < 0 || !R_FINITE(x))
 	return R_D__0;
