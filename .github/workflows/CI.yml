@@ -17,16 +17,20 @@ jobs:
         version:
           - '1.0'
           - '1'
-          - 'nightly'
         os:
           - ubuntu-latest
+          - windows-latest
         arch:
           - x64
+        include:
+          - os: macOS-14
+            arch: aarch64
+            version: '1'
     steps:
-      - uses: actions/checkout@v2
-      - uses: julia-actions/setup-julia@v1
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@latest
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
-      - run: make -j 3
+      - run: make -j
       - run: julia test.jl
