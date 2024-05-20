@@ -10,15 +10,12 @@ else
 XOBJS = $(DOBJS)
 endif
 
-CFLAGS-add += -DMATHLIB_STANDALONE
-
-
 default: release
 
 %.o: %.c
-	$(CC) $(CPPFLAGS) $(CFLAGS-add) $(CFLAGS) $(fPIC) -std=gnu99 -I../include -DNDEBUG -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(CFLAGS-add) $(fPIC) -DMATHLIB_STANDALONE -I../include -DNDEBUG -c $< -o $@
 %.do: %.c
-	$(CC) $(CPPFLAGS) $(CFLAGS-add) $(CFLAGS) $(fPIC) -std=gnu99 -I../include -g  -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(CFLAGS-add) $(fPIC) -DMATHLIB_STANDALONE -I../include -g -c $< -o $@
 
 release debug: libRmath-julia.$(SHLIB_EXT)
 
