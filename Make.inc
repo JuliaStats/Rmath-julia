@@ -1,4 +1,4 @@
-# -*- mode: makefile-gmake -*-
+# -*- mode: makefile -*-
 ifneq ($(OS),Windows_NT)
   OS = $(shell uname)
 endif
@@ -13,19 +13,11 @@ ifneq (,$(findstring CYGWIN,$(OS)))
 override OS := Windows_NT
 endif
 
-USEGCC = 1
-USECLANG = 0
+# Default value, can be overriden on the command line
+# or with an environment variable.
+CC ?= gcc
 
 CFLAGS-add += -Wall -O3
-
-ifeq ($(USECLANG),1)
-USEGCC = 0
-CC = clang
-endif
-
-ifeq ($(USEGCC),1)
-CC = gcc
-endif
 
 ifeq ($(OS), Linux)
 SHLIB_EXT = so

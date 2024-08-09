@@ -34,4 +34,6 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
       - run: make -j
+        env:
+          CC: gcc
       - run: julia test.jl
