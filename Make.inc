@@ -13,6 +13,10 @@ ifneq (,$(findstring CYGWIN,$(OS)))
 override OS := Windows_NT
 endif
 
+# Default value, can be overriden on the command line
+# or with an environment variable.
+CC ?= gcc
+
 CFLAGS-add += -Wall -O3
 
 ifeq ($(OS), Linux)
