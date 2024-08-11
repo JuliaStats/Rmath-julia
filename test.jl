@@ -33,10 +33,8 @@ end
     @test sample_variance ≈ expected_variance rtol = 0.01
 end
 
-using Distributions
 function sample_KkC(n; N, Q)
-    total_errors = Distributions.Binomial(N, Q)
-    K = rand(total_errors)
+    K = rand([1,2,3,4,5])
     k = ccall(
         (:rhyper, libRmath), Float64, (Float64, Float64, Float64),
         K, N-K, n
