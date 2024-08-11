@@ -49,9 +49,9 @@ double rbeta(double aa, double bb)
     int qsame;
     /* FIXME:  Keep Globals (properly) for threading */
     /* Uses these GLOBALS to save time when many rv's are generated : */
-    static double beta, gamma, delta, k1, k2;
-    static double olda = -1.0;
-    static double oldb = -1.0;
+    _Thread_local static double beta, gamma, delta, k1, k2;
+    _Thread_local static double olda = -1.0;
+    _Thread_local static double oldb = -1.0;
 
     /* Test if we need new "initializing" */
     qsame = (olda == aa) && (oldb == bb);
