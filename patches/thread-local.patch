@@ -1,0 +1,175 @@
+diff --git a/src/rbeta.c b/src/rbeta.c
+index 045451e..8c13779 100644
+--- a/src/rbeta.c
++++ b/src/rbeta.c
+@@ -49,9 +49,9 @@ double rbeta(double aa, double bb)
+     int qsame;
+     /* FIXME:  Keep Globals (properly) for threading */
+     /* Uses these GLOBALS to save time when many rv's are generated : */
+-    static double beta, gamma, delta, k1, k2;
+-    static double olda = -1.0;
+-    static double oldb = -1.0;
++    _Thread_local static double beta, gamma, delta, k1, k2;
++    _Thread_local static double olda = -1.0;
++    _Thread_local static double oldb = -1.0;
+
+     /* Test if we need new "initializing" */
+     qsame = (olda == aa) && (oldb == bb);
+diff --git a/src/rbinom.c b/src/rbinom.c
+index 9fb34f5..ba6cad0 100644
+--- a/src/rbinom.c
++++ b/src/rbinom.c
+@@ -46,12 +46,12 @@ double rbinom(double nin, double pp)
+ {
+     /* FIXME: These should become THREAD_specific globals : */
+
+-    static double c, fm, npq, p1, p2, p3, p4, qn;
+-    static double xl, xll, xlr, xm, xr;
++    _Thread_local static double c, fm, npq, p1, p2, p3, p4, qn;
++    _Thread_local static double xl, xll, xlr, xm, xr;
+
+-    static double psave = -1.0;
+-    static int nsave = -1;
+-    static int m;
++    _Thread_local static double psave = -1.0;
++    _Thread_local static int nsave = -1;
++    _Thread_local static int m;
+
+     double f, f1, f2, u, v, w, w2, x, x1, x2, z, z2;
+     double p, q, np, g, r, al, alv, amaxp, ffm, ynorm;
+diff --git a/src/rgamma.c b/src/rgamma.c
+index e182f6e..87252db 100644
+--- a/src/rgamma.c
++++ b/src/rgamma.c
+@@ -78,11 +78,11 @@ double rgamma(double a, double scale)
+     const static double a6 = -0.1367177;
+     const static double a7 = 0.1233795;
+
+-    /* State variables [FIXME for threading!] :*/
+-    static double aa = 0.;
+-    static double aaa = 0.;
+-    static double s, s2, d;    /* no. 1 (step 1) */
+-    static double q0, b, si, c;/* no. 2 (step 4) */
++    /* State variables :*/
++    _Thread_local static double aa = 0.;
++    _Thread_local static double aaa = 0.;
++    _Thread_local static double s, s2, d;    /* no. 1 (step 1) */
++    _Thread_local static double q0, b, si, c;/* no. 2 (step 4) */
+
+     double e, p, q, r, t, u, v, w, x, ret_val;
+
+diff --git a/src/rhyper.c b/src/rhyper.c
+index 129ef2e..a254b81 100644
+--- a/src/rhyper.c
++++ b/src/rhyper.c
+@@ -88,16 +88,15 @@ double rhyper(double nn1in, double nn2in, double kkin)
+     int ix; // return value (coerced to double at the very end)
+     Rboolean setup1, setup2;
+
+-    /* These should become 'thread_local globals' : */
+-    static int ks = -1, n1s = -1, n2s = -1;
+-    static int m, minjx, maxjx;
+-    static int k, n1, n2; // <- not allowing larger integer par
+-    static double N;
++    _Thread_local static int ks = -1, n1s = -1, n2s = -1;
++    _Thread_local static int m, minjx, maxjx;
++    _Thread_local static int k, n1, n2; // <- not allowing larger integer par
++    _Thread_local static double N;
+
+     // II :
+-    static double w;
++    _Thread_local static double w;
+     // III:
+-    static double a, d, s, xl, xr, kl, kr, lamdl, lamdr, p1, p2, p3;
++    _Thread_local static double a, d, s, xl, xr, kl, kr, lamdl, lamdr, p1, p2, p3;
+
+     /* check parameter validity */
+
+diff --git a/src/rpois.c b/src/rpois.c
+index f26f808..d195005 100644
+--- a/src/rpois.c
++++ b/src/rpois.c
+@@ -60,12 +60,12 @@ double rpois(double mu)
+     };
+
+     /* These are static --- persistent between calls for same mu : */
+-    static int l, m;
++    _Thread_local static int l, m;
+
+-    static double b1, b2, c, c0, c1, c2, c3;
+-    static double pp[36], p0, p, q, s, d, omega;
+-    static double big_l;/* integer "w/o overflow" */
+-    static double muprev = 0., muprev2 = 0.;/*, muold	 = 0.*/
++    _Thread_local static double b1, b2, c, c0, c1, c2, c3;
++    _Thread_local static double pp[36], p0, p, q, s, d, omega;
++    _Thread_local static double big_l;/* integer "w/o overflow" */
++    _Thread_local static double muprev = 0., muprev2 = 0.;/*, muold	 = 0.*/
+
+     /* Local Vars  [initialize some for -Wall]: */
+     double del, difmuk= 0., E= 0., fk= 0., fx, fy, g, px, py, t, u= 0., v, x;
+diff --git a/src/signrank.c b/src/signrank.c
+index 2cb5f5b..30c0008 100644
+--- a/src/signrank.c
++++ b/src/signrank.c
+@@ -38,8 +38,8 @@
+ #include "nmath.h"
+ #include "dpq.h"
+
+-static double *w;
+-static int allocated_n;
++_Thread_local static double *w;
++_Thread_local static int allocated_n;
+
+ static void
+ w_free(void)
+diff --git a/src/sunif.c b/src/sunif.c
+index 6fce354..a1cf3c6 100644
+--- a/src/sunif.c
++++ b/src/sunif.c
+@@ -20,7 +20,7 @@
+
+ /* A version of Marsaglia-MultiCarry */
+
+-static unsigned int I1=1234, I2=5678;
++_Thread_local static unsigned int I1=1234, I2=5678;
+
+ void set_seed(unsigned int i1, unsigned int i2)
+ {
+diff --git a/src/toms708.c b/src/toms708.c
+index ab9bdbb..347f23f 100644
+--- a/src/toms708.c
++++ b/src/toms708.c
+@@ -1491,12 +1491,12 @@ double rexpm1(double x)
+ /*            EVALUATION OF THE FUNCTION EXP(X) - 1 */
+ /* ----------------------------------------------------------------------- */
+
+-    static double p1 = 9.14041914819518e-10;
+-    static double p2 = .0238082361044469;
+-    static double q1 = -.499999999085958;
+-    static double q2 = .107141568980644;
+-    static double q3 = -.0119041179760821;
+-    static double q4 = 5.95130811860248e-4;
++    _Thread_local static double p1 = 9.14041914819518e-10;
++    _Thread_local static double p2 = .0238082361044469;
++    _Thread_local static double q1 = -.499999999085958;
++    _Thread_local static double q2 = .107141568980644;
++    _Thread_local static double q3 = -.0119041179760821;
++    _Thread_local static double q4 = 5.95130811860248e-4;
+
+     if (fabs(x) <= 0.15) {
+ 	return x * (((p2 * x + p1) * x + 1.) /
+diff --git a/src/wilcox.c b/src/wilcox.c
+index 785ef6b..2ea300c 100644
+--- a/src/wilcox.c
++++ b/src/wilcox.c
+@@ -47,8 +47,8 @@
+ #include <R_ext/Utils.h>
+ #endif
+
+-static double ***w; /* to store  cwilcox(i,j,k) -> w[i][j][k] */
+-static int allocated_m, allocated_n;
++_Thread_local static double ***w; /* to store  cwilcox(i,j,k) -> w[i][j][k] */
++_Thread_local static int allocated_m, allocated_n;
+
+ static void
+ w_free(int m, int n)

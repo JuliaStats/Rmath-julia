@@ -17,5 +17,6 @@ update: R-$(RVERSION).tar.gz
 	find include/R_ext -name '*.h' | xargs -I {} tar -xzvf $< --strip-components 2 '*/src/{}'
 	tar -xzvf $< --strip-components 2 '*/src/include/Rmath.h0.in'
 	mv -f include/Rmath.h0.in include/Rmath.h
+	patch -p1 < patches/thread-local.patch
 
 .PHONY: all clean update
