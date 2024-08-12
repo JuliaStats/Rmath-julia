@@ -38,8 +38,8 @@
 #include "nmath.h"
 #include "dpq.h"
 
-static double *w;
-static int allocated_n;
+_Thread_local static double *w;
+_Thread_local static int allocated_n;
 
 static void
 w_free(void)

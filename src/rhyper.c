@@ -88,16 +88,15 @@ double rhyper(double nn1in, double nn2in, double kkin)
     int ix; // return value (coerced to double at the very end)
     Rboolean setup1, setup2;
 
-    /* These should become 'thread_local globals' : */
-    static int ks = -1, n1s = -1, n2s = -1;
-    static int m, minjx, maxjx;
-    static int k, n1, n2; // <- not allowing larger integer par
-    static double N;
+    _Thread_local static int ks = -1, n1s = -1, n2s = -1;
+    _Thread_local static int m, minjx, maxjx;
+    _Thread_local static int k, n1, n2; // <- not allowing larger integer par
+    _Thread_local static double N;
 
     // II :
-    static double w;
+    _Thread_local static double w;
     // III:
-    static double a, d, s, xl, xr, kl, kr, lamdl, lamdr, p1, p2, p3;
+    _Thread_local static double a, d, s, xl, xr, kl, kr, lamdl, lamdr, p1, p2, p3;
 
     /* check parameter validity */
 
