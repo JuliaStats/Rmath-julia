@@ -46,12 +46,12 @@ double rbinom(double nin, double pp)
 {
     /* FIXME: These should become THREAD_specific globals : */
 
-    static double c, fm, npq, p1, p2, p3, p4, qn;
-    static double xl, xll, xlr, xm, xr;
+    _Thread_local static double c, fm, npq, p1, p2, p3, p4, qn;
+    _Thread_local static double xl, xll, xlr, xm, xr;
 
-    static double psave = -1.0;
-    static int nsave = -1;
-    static int m;
+    _Thread_local static double psave = -1.0;
+    _Thread_local static int nsave = -1;
+    _Thread_local static int m;
 
     double f, f1, f2, u, v, w, w2, x, x1, x2, z, z2;
     double p, q, np, g, r, al, alv, amaxp, ffm, ynorm;

@@ -47,8 +47,8 @@
 #include <R_ext/Utils.h>
 #endif
 
-static double ***w; /* to store  cwilcox(i,j,k) -> w[i][j][k] */
-static int allocated_m, allocated_n;
+_Thread_local static double ***w; /* to store  cwilcox(i,j,k) -> w[i][j][k] */
+_Thread_local static int allocated_m, allocated_n;
 
 static void
 w_free(int m, int n)

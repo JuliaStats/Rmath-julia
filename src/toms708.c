@@ -1491,12 +1491,12 @@ double rexpm1(double x)
 /*            EVALUATION OF THE FUNCTION EXP(X) - 1 */
 /* ----------------------------------------------------------------------- */
 
-    static double p1 = 9.14041914819518e-10;
-    static double p2 = .0238082361044469;
-    static double q1 = -.499999999085958;
-    static double q2 = .107141568980644;
-    static double q3 = -.0119041179760821;
-    static double q4 = 5.95130811860248e-4;
+    _Thread_local static double p1 = 9.14041914819518e-10;
+    _Thread_local static double p2 = .0238082361044469;
+    _Thread_local static double q1 = -.499999999085958;
+    _Thread_local static double q2 = .107141568980644;
+    _Thread_local static double q3 = -.0119041179760821;
+    _Thread_local static double q4 = 5.95130811860248e-4;
 
     if (fabs(x) <= 0.15) {
 	return x * (((p2 * x + p1) * x + 1.) /

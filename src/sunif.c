@@ -20,7 +20,7 @@
 
 /* A version of Marsaglia-MultiCarry */
 
-static unsigned int I1=1234, I2=5678;
+_Thread_local static unsigned int I1=1234, I2=5678;
 
 void set_seed(unsigned int i1, unsigned int i2)
 {

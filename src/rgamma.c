@@ -78,11 +78,11 @@ double rgamma(double a, double scale)
     const static double a6 = -0.1367177;
     const static double a7 = 0.1233795;
 
-    /* State variables [FIXME for threading!] :*/
-    static double aa = 0.;
-    static double aaa = 0.;
-    static double s, s2, d;    /* no. 1 (step 1) */
-    static double q0, b, si, c;/* no. 2 (step 4) */
+    /* State variables :*/
+    _Thread_local static double aa = 0.;
+    _Thread_local static double aaa = 0.;
+    _Thread_local static double s, s2, d;    /* no. 1 (step 1) */
+    _Thread_local static double q0, b, si, c;/* no. 2 (step 4) */
 
     double e, p, q, r, t, u, v, w, x, ret_val;
 
