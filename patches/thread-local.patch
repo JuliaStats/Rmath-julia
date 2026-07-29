@@ -135,29 +135,6 @@ index 6fce354..a1cf3c6 100644
 
  void set_seed(unsigned int i1, unsigned int i2)
  {
-diff --git a/src/toms708.c b/src/toms708.c
-index ab9bdbb..347f23f 100644
---- a/src/toms708.c
-+++ b/src/toms708.c
-@@ -1491,12 +1491,12 @@ double rexpm1(double x)
- /*            EVALUATION OF THE FUNCTION EXP(X) - 1 */
- /* ----------------------------------------------------------------------- */
-
--    static double p1 = 9.14041914819518e-10;
--    static double p2 = .0238082361044469;
--    static double q1 = -.499999999085958;
--    static double q2 = .107141568980644;
--    static double q3 = -.0119041179760821;
--    static double q4 = 5.95130811860248e-4;
-+    _Thread_local static double p1 = 9.14041914819518e-10;
-+    _Thread_local static double p2 = .0238082361044469;
-+    _Thread_local static double q1 = -.499999999085958;
-+    _Thread_local static double q2 = .107141568980644;
-+    _Thread_local static double q3 = -.0119041179760821;
-+    _Thread_local static double q4 = 5.95130811860248e-4;
-
-     if (fabs(x) <= 0.15) {
- 	return x * (((p2 * x + p1) * x + 1.) /
 diff --git a/src/wilcox.c b/src/wilcox.c
 index 785ef6b..2ea300c 100644
 --- a/src/wilcox.c
