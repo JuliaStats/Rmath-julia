@@ -46,10 +46,16 @@ endif
 
 default: release
 
+# Track header dependencies. Without this, editing a header rebuilds nothing:
+# rmath_tls.h in particular is included by seven .c files and declares
+# Rmath_tls_ptr as _Thread_local, so a partial rebuild can link objects that
+# disagree about how to reach it and crash at the first call.
+DEPFLAGS = -MMD -MP
+
 %.o: %.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -DNDEBUG -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) -DNDEBUG -c $< -o $@
 %.do: %.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g  -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) -g  -c $< -o $@
 
 release debug: libRmath-julia.$(SHLIB_EXT)
 
@@ -58,4 +64,6 @@ libRmath-julia.$(SHLIB_EXT): $(XOBJS)
 	$(CC) $(LDFLAGS) -shared -o $@ $^ $(LIBS)
 
 clean:
-	-rm -f *.o *.do *.a *.$(SHLIB_EXT) core* *~ *#
+	-rm -f *.o *.do *.d *.a *.$(SHLIB_EXT) core* *~ *#
+
+-include $(SRCS:%.c=%.d)
