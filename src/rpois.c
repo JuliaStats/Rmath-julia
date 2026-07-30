@@ -35,6 +35,7 @@
  */
 
 #include "nmath.h"
+#include "rmath_tls.h"
 
 #define a0	-0.5
 #define a1	 0.3333333
@@ -51,6 +52,12 @@
 
 #define repeat for(;;)
 
+void Rmath_rpois_state_init(struct rpois_state *st)
+{
+    st->muprev = 0.;
+    st->muprev2 = 0.;
+}
+
 double rpois(double mu)
 {
     /* Factorial Table (0:9)! */
@@ -58,14 +65,6 @@ double rpois(double mu)
     {
 	1., 1., 2., 6., 24., 120., 720., 5040., 40320., 362880.
     };
-
-    /* These are static --- persistent between calls for same mu : */
-    _Thread_local static int l, m;
-
-    _Thread_local static double b1, b2, c, c0, c1, c2, c3;
-    _Thread_local static double pp[36], p0, p, q, s, d, omega;
-    _Thread_local static double big_l;/* integer "w/o overflow" */
-    _Thread_local static double muprev = 0., muprev2 = 0.;/*, muold	 = 0.*/
 
     /* Local Vars  [initialize some for -Wall]: */
     double del, difmuk= 0., E= 0., fk= 0., fx, fy, g, px, py, t, u= 0., v, x;
@@ -78,11 +77,16 @@ double rpois(double mu)
     if (mu <= 0.)
 	return 0.;
 
+    /* Per-thread state, persistent between calls for the same mu : */
+    Rmath_tls *tls = Rmath_tls_get();
+    if (!tls) ML_WARN_return_NAN;
+    struct rpois_state *st = &tls->rpois;
+
     big_mu = mu >= 10.;
     if(big_mu)
 	new_big_mu = FALSE;
 
-    if (!(big_mu && mu == muprev)) {/* maybe compute new persistent par.s */
+    if (!(big_mu && mu == st->muprev)) {/* maybe compute new persistent par.s */
 
 	if (big_mu) {
 	    new_big_mu = TRUE;
@@ -90,10 +94,10 @@ double rpois(double mu)
 	     * The poisson probabilities pk exceed the discrete normal
 	     * probabilities fk whenever k >= m(mu).
 	     */
-	    muprev = mu;
-	    s = sqrt(mu);
-	    d = 6. * mu * mu;
-	    big_l = floor(mu - 1.1484);
+	    st->muprev = mu;
+	    st->s = sqrt(mu);
+	    st->d = 6. * mu * mu;
+	    st->big_l = floor(mu - 1.1484);
 	    /* = an upper bound to m(mu) for all mu >= 10.*/
 	}
 	else { /* Small mu ( < 10) -- not using normal approx. */
@@ -101,42 +105,42 @@ double rpois(double mu)
 	    /* Case B. (start new table and calculate p0 if necessary) */
 
 	    /*muprev = 0.;-* such that next time, mu != muprev ..*/
-	    if (mu != muprev) {
-		muprev = mu;
-		m = imax2(1, (int) mu);
-		l = 0; /* pp[] is already ok up to pp[l] */
-		q = p0 = p = exp(-mu);
+	    if (mu != st->muprev) {
+		st->muprev = mu;
+		st->m = imax2(1, (int) mu);
+		st->l = 0; /* pp[] is already ok up to pp[l] */
+		st->q = st->p0 = st->p = exp(-mu);
 	    }
 
 	    repeat {
 		/* Step U. uniform sample for inversion method */
 		u = unif_rand();
-		if (u <= p0)
+		if (u <= st->p0)
 		    return 0.;
 
 		/* Step T. table comparison until the end pp[l] of the
 		   pp-table of cumulative poisson probabilities
 		   (0.458 > ~= pp[9](= 0.45792971447) for mu=10 ) */
-		if (l != 0) {
-		    for (k = (u <= 0.458) ? 1 : imin2(l, m);  k <= l; k++)
-			if (u <= pp[k])
+		if (st->l != 0) {
+		    for (k = (u <= 0.458) ? 1 : imin2(st->l, st->m);  k <= st->l; k++)
+			if (u <= st->pp[k])
 			    return (double)k;
-		    if (l == 35) /* u > pp[35] */
+		    if (st->l == 35) /* u > pp[35] */
 			continue;
 		}
 		/* Step C. creation of new poisson
 		   probabilities p[l..] and their cumulatives q =: pp[k] */
-		l++;
-		for (k = l; k <= 35; k++) {
-		    p *= mu / k;
-		    q += p;
-		    pp[k] = q;
-		    if (u <= q) {
-			l = k;
+		st->l++;
+		for (k = st->l; k <= 35; k++) {
+		    st->p *= mu / k;
+		    st->q += st->p;
+		    st->pp[k] = st->q;
+		    if (u <= st->q) {
+			st->l = k;
 			return (double)k;
 		    }
 		}
-		l = 35;
+		st->l = 35;
 	    } /* end(repeat) */
 	}/* mu < 10 */
 
@@ -145,40 +149,40 @@ double rpois(double mu)
 /* Only if mu >= 10 : ----------------------- */
 
     /* Step N. normal sample */
-    g = mu + s * norm_rand();/* norm_rand() ~ N(0,1), standard normal */
+    g = mu + st->s * norm_rand();/* norm_rand() ~ N(0,1), standard normal */
 
     if (g >= 0.) {
 	pois = floor(g);
 	/* Step I. immediate acceptance if pois is large enough */
-	if (pois >= big_l)
+	if (pois >= st->big_l)
 	    return pois;
 	/* Step S. squeeze acceptance */
 	fk = pois;
 	difmuk = mu - fk;
 	u = unif_rand(); /* ~ U(0,1) - sample */
-	if (d * u >= difmuk * difmuk * difmuk)
+	if (st->d * u >= difmuk * difmuk * difmuk)
 	    return pois;
     }
 
     /* Step P. preparations for steps Q and H.
        (recalculations of parameters if necessary) */
 
-    if (new_big_mu || mu != muprev2) {
+    if (new_big_mu || mu != st->muprev2) {
         /* Careful! muprev2 is not always == muprev
 	   because one might have exited in step I or S
 	   */
-        muprev2 = mu;
-	omega = M_1_SQRT_2PI / s;
+        st->muprev2 = mu;
+	st->omega = M_1_SQRT_2PI / st->s;
 	/* The quantities b1, b2, c3, c2, c1, c0 are for the Hermite
 	 * approximations to the discrete normal probabilities fk. */
 
-	b1 = one_24 / mu;
-	b2 = 0.3 * b1 * b1;
-	c3 = one_7 * b1 * b2;
-	c2 = b2 - 15. * c3;
-	c1 = b1 - 6. * b2 + 45. * c3;
-	c0 = 1. - b1 + 3. * b2 - 15. * c3;
-	c = 0.1069 / mu; /* guarantees majorization by the 'hat'-function. */
+	st->b1 = one_24 / mu;
+	st->b2 = 0.3 * st->b1 * st->b1;
+	st->c3 = one_7 * st->b1 * st->b2;
+	st->c2 = st->b2 - 15. * st->c3;
+	st->c1 = st->b1 - 6. * st->b2 + 45. * st->c3;
+	st->c0 = 1. - st->b1 + 3. * st->b2 - 15. * st->c3;
+	st->c = 0.1069 / mu; /* guarantees majorization by the 'hat'-function. */
     }
 
     if (g >= 0.) {
@@ -198,7 +202,7 @@ double rpois(double mu)
 	u = 2 * unif_rand() - 1.;
 	t = 1.8 + fsign(E, u);
 	if (t > -0.6744) {
-	    pois = floor(mu + s * t);
+	    pois = floor(mu + st->s * t);
 	    fk = pois;
 	    difmuk = mu - fk;
 
@@ -225,13 +229,13 @@ double rpois(double mu)
 		    px = fk * log(1. + v) - difmuk - del;
 		py = M_1_SQRT_2PI / sqrt(fk);
 	    }
-	    x = (0.5 - difmuk) / s;
+	    x = (0.5 - difmuk) / st->s;
 	    x *= x;/* x^2 */
 	    fx = -0.5 * x;
-	    fy = omega * (((c3 * x + c2) * x + c1) * x + c0);
+	    fy = st->omega * (((st->c3 * x + st->c2) * x + st->c1) * x + st->c0);
 	    if (kflag > 0) {
 		/* Step H. Hat acceptance (E is repeated on rejection) */
-		if (c * fabs(u) <= py * exp(px + E) - fy * exp(fx + E))
+		if (st->c * fabs(u) <= py * exp(px + E) - fy * exp(fx + E))
 		    break;
 	    } else
 		/* Step Q. Quotient acceptance (rare case) */

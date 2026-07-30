@@ -27,8 +27,15 @@
  */
 
 #include "nmath.h"
+#include "rmath_tls.h"
 
 #define expmax	(DBL_MAX_EXP * M_LN2)/* = log(DBL_MAX) */
+
+void Rmath_rbeta_state_init(struct rbeta_state *st)
+{
+    st->olda = -1.0;
+    st->oldb = -1.0;
+}
 
 double rbeta(double aa, double bb)
 {
@@ -47,22 +54,21 @@ double rbeta(double aa, double bb)
     double a, b, alpha;
     double r, s, t, u1, u2, v, w, y, z;
     int qsame;
-    /* FIXME:  Keep Globals (properly) for threading */
-    /* Uses these GLOBALS to save time when many rv's are generated : */
-    _Thread_local static double beta, gamma, delta, k1, k2;
-    _Thread_local static double olda = -1.0;
-    _Thread_local static double oldb = -1.0;
+    /* Per-thread state, to save time when many rv's are generated : */
+    Rmath_tls *tls = Rmath_tls_get();
+    if (!tls) ML_WARN_return_NAN;
+    struct rbeta_state *st = &tls->rbeta;
 
     /* Test if we need new "initializing" */
-    qsame = (olda == aa) && (oldb == bb);
-    if (!qsame) { olda = aa; oldb = bb; }
+    qsame = (st->olda == aa) && (st->oldb == bb);
+    if (!qsame) { st->olda = aa; st->oldb = bb; }
 
     a = fmin2(aa, bb);
     b = fmax2(aa, bb); /* a <= b */
     alpha = a + b;
 
 #define v_w_from__u1_bet(AA) 			\
-	    v = beta * log(u1 / (1.0 - u1));	\
+	    v = st->beta * log(u1 / (1.0 - u1));\
 	    if (v <= expmax) {			\
 		w = AA * exp(v);		\
 		if(!R_FINITE(w)) w = DBL_MAX;	\
@@ -75,10 +81,10 @@ double rbeta(double aa, double bb)
 	/* changed notation, now also a <= b (was reversed) */
 
 	if (!qsame) { /* initialize */
-	    beta = 1.0 / a;
-	    delta = 1.0 + b - a;
-	    k1 = delta * (0.0138889 + 0.0416667 * a) / (b * beta - 0.777778);
-	    k2 = 0.25 + (0.5 + 0.25 / delta) * a;
+	    st->beta = 1.0 / a;
+	    st->delta = 1.0 + b - a;
+	    st->k1 = st->delta * (0.0138889 + 0.0416667 * a) / (b * st->beta - 0.777778);
+	    st->k2 = 0.25 + (0.5 + 0.25 / st->delta) * a;
 	}
 	/* FIXME: "do { } while()", but not trivially because of "continue"s:*/
 	for(;;) {
@@ -87,7 +93,7 @@ double rbeta(double aa, double bb)
 	    if (u1 < 0.5) {
 		y = u1 * u2;
 		z = u1 * y;
-		if (0.25 * u2 + z - y >= k1)
+		if (0.25 * u2 + z - y >= st->k1)
 		    continue;
 	    } else {
 		z = u1 * u1 * u2;
@@ -95,7 +101,7 @@ double rbeta(double aa, double bb)
 		    v_w_from__u1_bet(b);
 		    break;
 		}
-		if (z >= k2)
+		if (z >= st->k2)
 		    continue;
 	    }
 
@@ -110,8 +116,8 @@ double rbeta(double aa, double bb)
     else {		/* Algorithm BB */
 
 	if (!qsame) { /* initialize */
-	    beta = sqrt((alpha - 2.0) / (2.0 * a * b - alpha));
-	    gamma = a + 1.0 / beta;
+	    st->beta = sqrt((alpha - 2.0) / (2.0 * a * b - alpha));
+	    st->gamma = a + 1.0 / st->beta;
 	}
 	do {
 	    u1 = unif_rand();
@@ -120,7 +126,7 @@ double rbeta(double aa, double bb)
 	    v_w_from__u1_bet(a);
 
 	    z = u1 * u1 * u2;
-	    r = gamma * v - 1.3862944;
+	    r = st->gamma * v - 1.3862944;
 	    s = a + r - w;
 	    if (s + 2.609438 >= 5.0 * z)
 		break;
