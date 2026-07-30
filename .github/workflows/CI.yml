@@ -32,4 +32,5 @@ jobs:
       - run: make -j
         env:
           CC: gcc
-      - run: julia test.jl
+      # The generators keep per-thread state, so the tests need several threads.
+      - run: julia --threads=4 test.jl

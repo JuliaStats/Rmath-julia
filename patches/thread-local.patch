@@ -1,152 +1,1447 @@
 diff --git a/src/rbeta.c b/src/rbeta.c
-index 045451e..8c13779 100644
+index 045451e..61381bf 100644
 --- a/src/rbeta.c
 +++ b/src/rbeta.c
-@@ -49,9 +49,9 @@ double rbeta(double aa, double bb)
+@@ -27,9 +27,16 @@
+  */
+ 
+ #include "nmath.h"
++#include "rmath_tls.h"
+ 
+ #define expmax	(DBL_MAX_EXP * M_LN2)/* = log(DBL_MAX) */
+ 
++void Rmath_rbeta_state_init(struct rbeta_state *st)
++{
++    st->olda = -1.0;
++    st->oldb = -1.0;
++}
++
+ double rbeta(double aa, double bb)
+ {
+     if (ISNAN(aa) || ISNAN(bb) || aa < 0. || bb < 0.)
+@@ -47,22 +54,21 @@ double rbeta(double aa, double bb)
+     double a, b, alpha;
+     double r, s, t, u1, u2, v, w, y, z;
      int qsame;
-     /* FIXME:  Keep Globals (properly) for threading */
-     /* Uses these GLOBALS to save time when many rv's are generated : */
+-    /* FIXME:  Keep Globals (properly) for threading */
+-    /* Uses these GLOBALS to save time when many rv's are generated : */
 -    static double beta, gamma, delta, k1, k2;
 -    static double olda = -1.0;
 -    static double oldb = -1.0;
-+    _Thread_local static double beta, gamma, delta, k1, k2;
-+    _Thread_local static double olda = -1.0;
-+    _Thread_local static double oldb = -1.0;
-
++    /* Per-thread state, to save time when many rv's are generated : */
++    Rmath_tls *tls = Rmath_tls_get();
++    if (!tls) ML_WARN_return_NAN;
++    struct rbeta_state *st = &tls->rbeta;
+ 
      /* Test if we need new "initializing" */
-     qsame = (olda == aa) && (oldb == bb);
+-    qsame = (olda == aa) && (oldb == bb);
+-    if (!qsame) { olda = aa; oldb = bb; }
++    qsame = (st->olda == aa) && (st->oldb == bb);
++    if (!qsame) { st->olda = aa; st->oldb = bb; }
+ 
+     a = fmin2(aa, bb);
+     b = fmax2(aa, bb); /* a <= b */
+     alpha = a + b;
+ 
+ #define v_w_from__u1_bet(AA) 			\
+-	    v = beta * log(u1 / (1.0 - u1));	\
++	    v = st->beta * log(u1 / (1.0 - u1));\
+ 	    if (v <= expmax) {			\
+ 		w = AA * exp(v);		\
+ 		if(!R_FINITE(w)) w = DBL_MAX;	\
+@@ -75,10 +81,10 @@ double rbeta(double aa, double bb)
+ 	/* changed notation, now also a <= b (was reversed) */
+ 
+ 	if (!qsame) { /* initialize */
+-	    beta = 1.0 / a;
+-	    delta = 1.0 + b - a;
+-	    k1 = delta * (0.0138889 + 0.0416667 * a) / (b * beta - 0.777778);
+-	    k2 = 0.25 + (0.5 + 0.25 / delta) * a;
++	    st->beta = 1.0 / a;
++	    st->delta = 1.0 + b - a;
++	    st->k1 = st->delta * (0.0138889 + 0.0416667 * a) / (b * st->beta - 0.777778);
++	    st->k2 = 0.25 + (0.5 + 0.25 / st->delta) * a;
+ 	}
+ 	/* FIXME: "do { } while()", but not trivially because of "continue"s:*/
+ 	for(;;) {
+@@ -87,7 +93,7 @@ double rbeta(double aa, double bb)
+ 	    if (u1 < 0.5) {
+ 		y = u1 * u2;
+ 		z = u1 * y;
+-		if (0.25 * u2 + z - y >= k1)
++		if (0.25 * u2 + z - y >= st->k1)
+ 		    continue;
+ 	    } else {
+ 		z = u1 * u1 * u2;
+@@ -95,7 +101,7 @@ double rbeta(double aa, double bb)
+ 		    v_w_from__u1_bet(b);
+ 		    break;
+ 		}
+-		if (z >= k2)
++		if (z >= st->k2)
+ 		    continue;
+ 	    }
+ 
+@@ -110,8 +116,8 @@ double rbeta(double aa, double bb)
+     else {		/* Algorithm BB */
+ 
+ 	if (!qsame) { /* initialize */
+-	    beta = sqrt((alpha - 2.0) / (2.0 * a * b - alpha));
+-	    gamma = a + 1.0 / beta;
++	    st->beta = sqrt((alpha - 2.0) / (2.0 * a * b - alpha));
++	    st->gamma = a + 1.0 / st->beta;
+ 	}
+ 	do {
+ 	    u1 = unif_rand();
+@@ -120,7 +126,7 @@ double rbeta(double aa, double bb)
+ 	    v_w_from__u1_bet(a);
+ 
+ 	    z = u1 * u1 * u2;
+-	    r = gamma * v - 1.3862944;
++	    r = st->gamma * v - 1.3862944;
+ 	    s = a + r - w;
+ 	    if (s + 2.609438 >= 5.0 * z)
+ 		break;
 diff --git a/src/rbinom.c b/src/rbinom.c
-index 9fb34f5..ba6cad0 100644
+index 9fb34f5..c4856d2 100644
 --- a/src/rbinom.c
 +++ b/src/rbinom.c
-@@ -46,12 +46,12 @@ double rbinom(double nin, double pp)
+@@ -39,20 +39,18 @@
+ #include "dpq.h"
+ #include <stdlib.h>
+ #include <limits.h>
++#include "rmath_tls.h"
+ 
+ #define repeat for(;;)
+ 
+-double rbinom(double nin, double pp)
++void Rmath_rbinom_state_init(struct rbinom_state *st)
  {
-     /* FIXME: These should become THREAD_specific globals : */
-
+-    /* FIXME: These should become THREAD_specific globals : */
+-
 -    static double c, fm, npq, p1, p2, p3, p4, qn;
 -    static double xl, xll, xlr, xm, xr;
-+    _Thread_local static double c, fm, npq, p1, p2, p3, p4, qn;
-+    _Thread_local static double xl, xll, xlr, xm, xr;
-
+-
 -    static double psave = -1.0;
 -    static int nsave = -1;
 -    static int m;
-+    _Thread_local static double psave = -1.0;
-+    _Thread_local static int nsave = -1;
-+    _Thread_local static int m;
-
++    st->psave = -1.0;
++    st->nsave = -1;
++}
+ 
++double rbinom(double nin, double pp)
++{
      double f, f1, f2, u, v, w, w2, x, x1, x2, z, z2;
      double p, q, np, g, r, al, alv, amaxp, ffm, ynorm;
+     int i, ix, k, n;
+@@ -73,6 +71,13 @@ double rbinom(double nin, double pp)
+     /* else */
+     n = (int) r;
+ 
++    /* Per-thread setup cache, persistent between calls for the same (n, pp).
++     * Fetched after the validation and the r >= INT_MAX escape above, neither
++     * of which uses it. */
++    Rmath_tls *tls = Rmath_tls_get();
++    if (!tls) ML_WARN_return_NAN;
++    struct rbinom_state *st = &tls->rbinom;
++
+     p = fmin2(pp, 1. - pp);
+     q = 1. - p;
+     np = n * p;
+@@ -84,83 +89,83 @@ double rbinom(double nin, double pp)
+     /* FIXING: Want this thread safe
+        -- use as little (thread globals) as possible
+     */
+-    if (pp != psave || n != nsave) {
+-	psave = pp;
+-	nsave = n;
++    if (pp != st->psave || n != st->nsave) {
++	st->psave = pp;
++	st->nsave = n;
+ 	if (np < 30.0) {
+ 	    /* inverse cdf logic for mean less than 30 */
+-	    qn = R_pow_di(q, n);
++	    st->qn = R_pow_di(q, n);
+ 	    goto L_np_small;
+ 	} else {
+ 	    ffm = np + p;
+-	    m = (int) ffm;
+-	    fm = m;
+-	    npq = np * q;
+-	    p1 = (int)(2.195 * sqrt(npq) - 4.6 * q) + 0.5;
+-	    xm = fm + 0.5;
+-	    xl = xm - p1;
+-	    xr = xm + p1;
+-	    c = 0.134 + 20.5 / (15.3 + fm);
+-	    al = (ffm - xl) / (ffm - xl * p);
+-	    xll = al * (1.0 + 0.5 * al);
+-	    al = (xr - ffm) / (xr * q);
+-	    xlr = al * (1.0 + 0.5 * al);
+-	    p2 = p1 * (1.0 + c + c);
+-	    p3 = p2 + c / xll;
+-	    p4 = p3 + c / xlr;
++	    st->m = (int) ffm;
++	    st->fm = st->m;
++	    st->npq = np * q;
++	    st->p1 = (int)(2.195 * sqrt(st->npq) - 4.6 * q) + 0.5;
++	    st->xm = st->fm + 0.5;
++	    st->xl = st->xm - st->p1;
++	    st->xr = st->xm + st->p1;
++	    st->c = 0.134 + 20.5 / (15.3 + st->fm);
++	    al = (ffm - st->xl) / (ffm - st->xl * p);
++	    st->xll = al * (1.0 + 0.5 * al);
++	    al = (st->xr - ffm) / (st->xr * q);
++	    st->xlr = al * (1.0 + 0.5 * al);
++	    st->p2 = st->p1 * (1.0 + st->c + st->c);
++	    st->p3 = st->p2 + st->c / st->xll;
++	    st->p4 = st->p3 + st->c / st->xlr;
+ 	}
+-    } else if (n == nsave) {
++    } else if (n == st->nsave) {
+ 	if (np < 30.0)
+ 	    goto L_np_small;
+     }
+ 
+     /*-------------------------- np = n*p >= 30 : ------------------- */
+     repeat {
+-      u = unif_rand() * p4;
++      u = unif_rand() * st->p4;
+       v = unif_rand();
+       /* triangular region */
+-      if (u <= p1) {
+-	  ix = (int)(xm - p1 * v + u);
++      if (u <= st->p1) {
++	  ix = (int)(st->xm - st->p1 * v + u);
+ 	  goto finis;
+       }
+       /* parallelogram region */
+-      if (u <= p2) {
+-	  x = xl + (u - p1) / c;
+-	  v = v * c + 1.0 - fabs(xm - x) / p1;
++      if (u <= st->p2) {
++	  x = st->xl + (u - st->p1) / st->c;
++	  v = v * st->c + 1.0 - fabs(st->xm - x) / st->p1;
+ 	  if (v > 1.0 || v <= 0.)
+ 	      continue;
+ 	  ix = (int) x;
+       } else {
+-	  if (u > p3) {	/* right tail */
+-	      ix = (int)(xr - log(v) / xlr);
++	  if (u > st->p3) {	/* right tail */
++	      ix = (int)(st->xr - log(v) / st->xlr);
+ 	      if (ix > n)
+ 		  continue;
+-	      v = v * (u - p3) * xlr;
++	      v = v * (u - st->p3) * st->xlr;
+ 	  } else {/* left tail */
+-	      ix = (int)(xl + log(v) / xll);
++	      ix = (int)(st->xl + log(v) / st->xll);
+ 	      if (ix < 0)
+ 		  continue;
+-	      v = v * (u - p2) * xll;
++	      v = v * (u - st->p2) * st->xll;
+ 	  }
+       }
+       /* determine appropriate way to perform accept/reject test */
+-      k = abs(ix - m);
+-      if (k <= 20 || k >= npq / 2 - 1) {
++      k = abs(ix - st->m);
++      if (k <= 20 || k >= st->npq / 2 - 1) {
+ 	  /* explicit evaluation */
+ 	  f = 1.0;
+-	  if (m < ix) {
+-	      for (i = m + 1; i <= ix; i++)
++	  if (st->m < ix) {
++	      for (i = st->m + 1; i <= ix; i++)
+ 		  f *= (g / i - r);
+-	  } else if (m != ix) {
+-	      for (i = ix + 1; i <= m; i++)
++	  } else if (st->m != ix) {
++	      for (i = ix + 1; i <= st->m; i++)
+ 		  f /= (g / i - r);
+ 	  }
+ 	  if (v <= f)
+ 	      goto finis;
+       } else {
+ 	  /* squeezing using upper and lower bounds on log(f(x)) */
+-	  amaxp = (k / npq) * ((k * (k / 3. + 0.625) + 0.1666666666666) / npq + 0.5);
+-	  ynorm = -k * k / (2.0 * npq);
++	  amaxp = (k / st->npq) * ((k * (k / 3. + 0.625) + 0.1666666666666) / st->npq + 0.5);
++	  ynorm = -k * k / (2.0 * st->npq);
+ 	  alv = log(v);
+ 	  if (alv < ynorm - amaxp)
+ 	      goto finis;
+@@ -168,14 +173,14 @@ double rbinom(double nin, double pp)
+ 	      /* stirling's formula to machine accuracy */
+ 	      /* for the final acceptance/rejection test */
+ 	      x1 = ix + 1;
+-	      f1 = fm + 1.0;
+-	      z = n + 1 - fm;
++	      f1 = st->fm + 1.0;
++	      z = n + 1 - st->fm;
+ 	      w = n - ix + 1.0;
+ 	      z2 = z * z;
+ 	      x2 = x1 * x1;
+ 	      f2 = f1 * f1;
+ 	      w2 = w * w;
+-	      if (alv <= xm * log(f1 / x1) + (n - m + 0.5) * log(z / w) + (ix - m) * log(w * p / (x1 * q)) + (13860.0 - (462.0 - (132.0 - (99.0 - 140.0 / f2) / f2) / f2) / f2) / f1 / 166320.0 + (13860.0 - (462.0 - (132.0 - (99.0 - 140.0 / z2) / z2) / z2) / z2) / z / 166320.0 + (13860.0 - (462.0 - (132.0 - (99.0 - 140.0 / x2) / x2) / x2) / x2) / x1 / 166320.0 + (13860.0 - (462.0 - (132.0 - (99.0 - 140.0 / w2) / w2) / w2) / w2) / w / 166320.)
++	      if (alv <= st->xm * log(f1 / x1) + (n - st->m + 0.5) * log(z / w) + (ix - st->m) * log(w * p / (x1 * q)) + (13860.0 - (462.0 - (132.0 - (99.0 - 140.0 / f2) / f2) / f2) / f2) / f1 / 166320.0 + (13860.0 - (462.0 - (132.0 - (99.0 - 140.0 / z2) / z2) / z2) / z2) / z / 166320.0 + (13860.0 - (462.0 - (132.0 - (99.0 - 140.0 / x2) / x2) / x2) / x2) / x1 / 166320.0 + (13860.0 - (462.0 - (132.0 - (99.0 - 140.0 / w2) / w2) / w2) / w2) / w / 166320.)
+ 		  goto finis;
+ 	  }
+       }
+@@ -186,7 +191,7 @@ double rbinom(double nin, double pp)
+ 
+   repeat {
+      ix = 0;
+-     f = qn;
++     f = st->qn;
+      u = unif_rand();
+      repeat {
+ 	 if (u < f)
+@@ -199,7 +204,7 @@ double rbinom(double nin, double pp)
+      }
+   }
+  finis:
+-    if (psave > 0.5)
++    if (st->psave > 0.5)
+ 	 ix = n - ix;
+   return (double)ix;
+ }
 diff --git a/src/rgamma.c b/src/rgamma.c
-index e182f6e..87252db 100644
+index e182f6e..8a192e4 100644
 --- a/src/rgamma.c
 +++ b/src/rgamma.c
-@@ -78,11 +78,11 @@ double rgamma(double a, double scale)
+@@ -49,6 +49,13 @@
+  */
+ 
+ #include "nmath.h"
++#include "rmath_tls.h"
++
++void Rmath_rgamma_state_init(struct rgamma_state *st)
++{
++    st->aa = 0.;
++    st->aaa = 0.;
++}
+ 
+ #define repeat for(;;)
+ 
+@@ -78,12 +85,6 @@ double rgamma(double a, double scale)
      const static double a6 = -0.1367177;
      const static double a7 = 0.1233795;
-
+ 
 -    /* State variables [FIXME for threading!] :*/
 -    static double aa = 0.;
 -    static double aaa = 0.;
 -    static double s, s2, d;    /* no. 1 (step 1) */
 -    static double q0, b, si, c;/* no. 2 (step 4) */
-+    /* State variables :*/
-+    _Thread_local static double aa = 0.;
-+    _Thread_local static double aaa = 0.;
-+    _Thread_local static double s, s2, d;    /* no. 1 (step 1) */
-+    _Thread_local static double q0, b, si, c;/* no. 2 (step 4) */
-
+-
      double e, p, q, r, t, u, v, w, x, ret_val;
-
+ 
+     if (ISNAN(a) || ISNAN(scale))
+@@ -113,34 +114,41 @@ double rgamma(double a, double scale)
+ 
+     /* --- a >= 1 : GD algorithm --- */
+ 
++    /* Per-thread state, persistent between calls for the same `a`.  Fetched
++     * here rather than on entry so that the a < 1 GS path above, which uses
++     * none of it, never triggers the allocation. */
++    Rmath_tls *tls = Rmath_tls_get();
++    if (!tls) ML_WARN_return_NAN;
++    struct rgamma_state *st = &tls->rgamma;
++
+     /* Step 1: Recalculations of s2, s, d if a has changed */
+-    if (a != aa) {
+-	aa = a;
+-	s2 = a - 0.5;
+-	s = sqrt(s2);
+-	d = sqrt32 - s * 12.0;
++    if (a != st->aa) {
++	st->aa = a;
++	st->s2 = a - 0.5;
++	st->s = sqrt(st->s2);
++	st->d = sqrt32 - st->s * 12.0;
+     }
+     /* Step 2: t = standard normal deviate,
+                x = (s,1/2) -normal deviate. */
+ 
+     /* immediate acceptance (i) */
+     t = norm_rand();
+-    x = s + 0.5 * t;
++    x = st->s + 0.5 * t;
+     ret_val = x * x;
+     if (t >= 0.0)
+ 	return scale * ret_val;
+ 
+     /* Step 3: u = 0,1 - uniform sample. squeeze acceptance (s) */
+     u = unif_rand();
+-    if (d * u <= t * t * t)
++    if (st->d * u <= t * t * t)
+ 	return scale * ret_val;
+ 
+     /* Step 4: recalculations of q0, b, si, c if necessary */
+ 
+-    if (a != aaa) {
+-	aaa = a;
++    if (a != st->aaa) {
++	st->aaa = a;
+ 	r = 1.0 / a;
+-	q0 = ((((((q7 * r + q6) * r + q5) * r + q4) * r + q3) * r
++	st->q0 = ((((((q7 * r + q6) * r + q5) * r + q4) * r + q3) * r
+ 	       + q2) * r + q1) * r;
+ 
+ 	/* Approximation depending on size of parameter a */
+@@ -148,29 +156,29 @@ double rgamma(double a, double scale)
+ 	/* were established by numerical experiments */
+ 
+ 	if (a <= 3.686) {
+-	    b = 0.463 + s + 0.178 * s2;
+-	    si = 1.235;
+-	    c = 0.195 / s - 0.079 + 0.16 * s;
++	    st->b = 0.463 + st->s + 0.178 * st->s2;
++	    st->si = 1.235;
++	    st->c = 0.195 / st->s - 0.079 + 0.16 * st->s;
+ 	} else if (a <= 13.022) {
+-	    b = 1.654 + 0.0076 * s2;
+-	    si = 1.68 / s + 0.275;
+-	    c = 0.062 / s + 0.024;
++	    st->b = 1.654 + 0.0076 * st->s2;
++	    st->si = 1.68 / st->s + 0.275;
++	    st->c = 0.062 / st->s + 0.024;
+ 	} else {
+-	    b = 1.77;
+-	    si = 0.75;
+-	    c = 0.1515 / s;
++	    st->b = 1.77;
++	    st->si = 0.75;
++	    st->c = 0.1515 / st->s;
+ 	}
+     }
+     /* Step 5: no quotient test if x not positive */
+ 
+     if (x > 0.0) {
+ 	/* Step 6: calculation of v and quotient q */
+-	v = t / (s + s);
++	v = t / (st->s + st->s);
+ 	if (fabs(v) <= 0.25)
+-	    q = q0 + 0.5 * t * t * ((((((a7 * v + a6) * v + a5) * v + a4) * v
++	    q = st->q0 + 0.5 * t * t * ((((((a7 * v + a6) * v + a5) * v + a4) * v
+ 				      + a3) * v + a2) * v + a1) * v;
+ 	else
+-	    q = q0 - s * t + 0.25 * t * t + (s2 + s2) * log(1.0 + v);
++	    q = st->q0 - st->s * t + 0.25 * t * t + (st->s2 + st->s2) * log(1.0 + v);
+ 
+ 
+ 	/* Step 7: quotient acceptance (q) */
+@@ -186,30 +194,30 @@ double rgamma(double a, double scale)
+ 	u = unif_rand();
+ 	u = u + u - 1.0;
+ 	if (u < 0.0)
+-	    t = b - si * e;
++	    t = st->b - st->si * e;
+ 	else
+-	    t = b + si * e;
++	    t = st->b + st->si * e;
+ 	/* Step	 9:  rejection if t < tau(1) = -0.71874483771719 */
+ 	if (t >= -0.71874483771719) {
+ 	    /* Step 10:	 calculation of v and quotient q */
+-	    v = t / (s + s);
++	    v = t / (st->s + st->s);
+ 	    if (fabs(v) <= 0.25)
+-		q = q0 + 0.5 * t * t *
++		q = st->q0 + 0.5 * t * t *
+ 		    ((((((a7 * v + a6) * v + a5) * v + a4) * v + a3) * v
+ 		      + a2) * v + a1) * v;
+ 	    else
+-		q = q0 - s * t + 0.25 * t * t + (s2 + s2) * log(1.0 + v);
++		q = st->q0 - st->s * t + 0.25 * t * t + (st->s2 + st->s2) * log(1.0 + v);
+ 	    /* Step 11:	 hat acceptance (h) */
+ 	    /* (if q not positive go to step 8) */
+ 	    if (q > 0.0) {
+ 		w = expm1(q);
+ 		/*  ^^^^^ original code had approximation with rel.err < 2e-7 */
+ 		/* if t is rejected sample again at step 8 */
+-		if (c * fabs(u) <= w * exp(e - 0.5 * t * t))
++		if (st->c * fabs(u) <= w * exp(e - 0.5 * t * t))
+ 		    break;
+ 	    }
+ 	}
+     } /* repeat .. until  `t' is accepted */
+-    x = s + 0.5 * t;
++    x = st->s + 0.5 * t;
+     return scale * x * x;
+ }
 diff --git a/src/rhyper.c b/src/rhyper.c
-index 129ef2e..a254b81 100644
+index 129ef2e..052de47 100644
 --- a/src/rhyper.c
 +++ b/src/rhyper.c
-@@ -88,16 +88,15 @@ double rhyper(double nn1in, double nn2in, double kkin)
+@@ -44,6 +44,7 @@
+ #include "nmath.h"
+ #include "dpq.h"
+ #include <limits.h>
++#include "rmath_tls.h"
+ 
+ // afc(i) :=  ln( i! )	[logarithm of the factorial i] = {R:} lgamma(i + 1) = {C:} lgammafn(i + 1)
+ static double afc(int i)
+@@ -79,6 +80,13 @@ static double afc(int i)
+ 	(0.0833333333333333 - 0.00277777777777778 / i2) / di;
+ }
+ 
++void Rmath_rhyper_state_init(struct rhyper_state *st)
++{
++    st->ks = -1;
++    st->n1s = -1;
++    st->n2s = -1;
++}
++
+ //     rhyper(NR, NB, n) -- NR 'red', NB 'blue', n drawn, how many are 'red'
+ double rhyper(double nn1in, double nn2in, double kkin)
+ {
+@@ -88,17 +96,6 @@ double rhyper(double nn1in, double nn2in, double kkin)
      int ix; // return value (coerced to double at the very end)
      Rboolean setup1, setup2;
-
+ 
 -    /* These should become 'thread_local globals' : */
 -    static int ks = -1, n1s = -1, n2s = -1;
 -    static int m, minjx, maxjx;
 -    static int k, n1, n2; // <- not allowing larger integer par
 -    static double N;
-+    _Thread_local static int ks = -1, n1s = -1, n2s = -1;
-+    _Thread_local static int m, minjx, maxjx;
-+    _Thread_local static int k, n1, n2; // <- not allowing larger integer par
-+    _Thread_local static double N;
-
-     // II :
+-
+-    // II :
 -    static double w;
-+    _Thread_local static double w;
-     // III:
+-    // III:
 -    static double a, d, s, xl, xr, kl, kr, lamdl, lamdr, p1, p2, p3;
-+    _Thread_local static double a, d, s, xl, xr, kl, kr, lamdl, lamdr, p1, p2, p3;
-
+-
      /* check parameter validity */
-
+ 
+     if(!R_FINITE(nn1in) || !R_FINITE(nn2in) || !R_FINITE(kkin))
+@@ -127,83 +124,90 @@ double rhyper(double nn1in, double nn2in, double kkin)
+     nn2 = (int)nn2in;
+     kk  = (int)kkin;
+ 
++    /* Per-thread state, persistent between calls for the same parameters.
++     * Fetched after the INT_MAX escape above, which delegates to rbinom() or
++     * qhyper() and uses none of it. */
++    Rmath_tls *tls = Rmath_tls_get();
++    if (!tls) ML_WARN_return_NAN;
++    struct rhyper_state *st = &tls->rhyper;
++
+     /* if new parameter values, initialize */
+-    if (nn1 != n1s || nn2 != n2s) { // n1 | n2 is changed: setup all
++    if (nn1 != st->n1s || nn2 != st->n2s) { // n1 | n2 is changed: setup all
+ 	setup1 = TRUE;	setup2 = TRUE;
+-    } else if (kk != ks) { // n1 & n2 are unchanged: setup 'k' only
++    } else if (kk != st->ks) { // n1 & n2 are unchanged: setup 'k' only
+ 	setup1 = FALSE;	setup2 = TRUE;
+     } else { // all three unchanged ==> no setup
+ 	setup1 = FALSE;	setup2 = FALSE;
+     }
+     if (setup1) { // n1 & n2
+-	n1s = nn1; n2s = nn2; // save
+-	N = nn1 + (double)nn2; // avoid int overflow
++	st->n1s = nn1; st->n2s = nn2; // save
++	st->N = nn1 + (double)nn2; // avoid int overflow
+ 	if (nn1 <= nn2) {
+-	    n1 = nn1; n2 = nn2;
++	    st->n1 = nn1; st->n2 = nn2;
+ 	} else { // nn2 < nn1
+-	    n1 = nn2; n2 = nn1;
++	    st->n1 = nn2; st->n2 = nn1;
+ 	}
+ 	// now have n1 <= n2
+     }
+     if (setup2) { // k
+-	ks = kk; // save
+-	if ((double)kk + kk >= N) { // this could overflow
+-	    k = (int)(N - kk);
++	st->ks = kk; // save
++	if ((double)kk + kk >= st->N) { // this could overflow
++	    st->k = (int)(st->N - kk);
+ 	} else {
+-	    k = kk;
++	    st->k = kk;
+ 	}
+     }
+     if (setup1 || setup2) {
+-	m = (int) ((k + 1.) * (n1 + 1.) / (N + 2.)); // m := floor(adjusted mean E[.])
+-	minjx = imax2(0, k - n2);
+-	maxjx = imin2(n1, k);
++	st->m = (int) ((st->k + 1.) * (st->n1 + 1.) / (st->N + 2.)); // m := floor(adjusted mean E[.])
++	st->minjx = imax2(0, st->k - st->n2);
++	st->maxjx = imin2(st->n1, st->k);
+ #ifdef DEBUG_rhyper
+ 	REprintf("rhyper(n1=%d, n2=%d, k=%d), setup: floor(a.mean)=: m = %d, [min,maxjx]= [%d,%d]\n",
+-		 nn1, nn2, kk, m, minjx, maxjx);
++		 nn1, nn2, kk, st->m, st->minjx, st->maxjx);
+ #endif
+     }
+     /* generate random variate --- Three basic cases */
+ 
+-    if (minjx == maxjx) { /* I: degenerate distribution ---------------- */
++    if (st->minjx == st->maxjx) { /* I: degenerate distribution ---------------- */
+ #ifdef DEBUG_rhyper
+-	REprintf("rhyper(), branch I (degenerate): ix := maxjx = %d\n", maxjx);
++	REprintf("rhyper(), branch I (degenerate): ix := maxjx = %d\n", st->maxjx);
+ #endif
+-	ix = maxjx;
++	ix = st->maxjx;
+ 	goto L_finis; // return appropriate variate
+ 
+-    } else if (m - minjx < 10) { // II: (Scaled) algorithm HIN (inverse transformation) ----
++    } else if (st->m - st->minjx < 10) { // II: (Scaled) algorithm HIN (inverse transformation) ----
+ 	const static double scale = 1e25; // scaling factor against (early) underflow
+ 	const static double con = 57.5646273248511421;
+ 					  // 25*log(10) = log(scale) { <==> exp(con) == scale }
+ 	if (setup1 || setup2) {
+ 	    double lw; // log(w);  w = exp(lw) * scale = exp(lw + log(scale)) = exp(lw + con)
+-	    if (k < n2) {
+-		lw = afc(n2) + afc(n1 + n2 - k) - afc(n2 - k) - afc(n1 + n2);
++	    if (st->k < st->n2) {
++		lw = afc(st->n2) + afc(st->n1 + st->n2 - st->k) - afc(st->n2 - st->k) - afc(st->n1 + st->n2);
+ 	    } else {
+-		lw = afc(n1) + afc(     k     ) - afc(k - n2) - afc(n1 + n2);
++		lw = afc(st->n1) + afc(     st->k     ) - afc(st->k - st->n2) - afc(st->n1 + st->n2);
+ 	    }
+-	    w = exp(lw + con);
++	    st->w = exp(lw + con);
+ 	}
+ 	double p, u;
+ #ifdef DEBUG_rhyper
+-	REprintf("rhyper(), branch II; w = %g > 0\n", w);
++	REprintf("rhyper(), branch II; w = %g > 0\n", st->w);
+ #endif
+       L10:
+-	p = w;
+-	ix = minjx;
++	p = st->w;
++	ix = st->minjx;
+ 	u = unif_rand() * scale;
+ #ifdef DEBUG_rhyper
+ 	REprintf("  _new_ u = %g\n", u);
+ #endif
+ 	while (u > p) {
+ 	    u -= p;
+-	    p *= ((double) n1 - ix) * (k - ix);
++	    p *= ((double) st->n1 - ix) * (st->k - ix);
+ 	    ix++;
+-	    p = p / ix / (n2 - k + ix);
++	    p = p / ix / (st->n2 - st->k + ix);
+ #ifdef DEBUG_rhyper
+ 	    REprintf("       ix=%3d, u=%11g, p=%20.14g (u-p=%g)\n", ix, u, p, u-p);
+ #endif
+-	    if (ix > maxjx)
++	    if (ix > st->maxjx)
+ 		goto L10;
+ 	    // FIXME  if(p == 0.)  we also "have lost"  => goto L10
+ 	}
+@@ -213,36 +217,36 @@ double rhyper(double nn1in, double nn2in, double kkin)
+ 	double u,v;
+ 
+ 	if (setup1 || setup2) {
+-	    s = sqrt((N - k) * k * n1 * n2 / (N - 1) / N / N);
++	    st->s = sqrt((st->N - st->k) * st->k * st->n1 * st->n2 / (st->N - 1) / st->N / st->N);
+ 
+ 	    /* remark: d is defined in reference without int. */
+ 	    /* the truncation centers the cell boundaries at 0.5 */
+ 
+-	    d = (int) (1.5 * s) + .5;
+-	    xl = m - d + .5;
+-	    xr = m + d + .5;
+-	    a = afc(m) + afc(n1 - m) + afc(k - m) + afc(n2 - k + m);
+-	    kl = exp(a - afc((int) (xl)) - afc((int) (n1 - xl))
+-		     - afc((int) (k - xl))
+-		     - afc((int) (n2 - k + xl)));
+-	    kr = exp(a - afc((int) (xr - 1))
+-		     - afc((int) (n1 - xr + 1))
+-		     - afc((int) (k - xr + 1))
+-		     - afc((int) (n2 - k + xr - 1)));
+-	    lamdl = -log(xl * (n2 - k + xl) / (n1 - xl + 1) / (k - xl + 1));
+-	    lamdr = -log((n1 - xr + 1) * (k - xr + 1) / xr / (n2 - k + xr));
+-	    p1 = d + d;
+-	    p2 = p1 + kl / lamdl;
+-	    p3 = p2 + kr / lamdr;
++	    st->d = (int) (1.5 * st->s) + .5;
++	    st->xl = st->m - st->d + .5;
++	    st->xr = st->m + st->d + .5;
++	    st->a = afc(st->m) + afc(st->n1 - st->m) + afc(st->k - st->m) + afc(st->n2 - st->k + st->m);
++	    st->kl = exp(st->a - afc((int) (st->xl)) - afc((int) (st->n1 - st->xl))
++		     - afc((int) (st->k - st->xl))
++		     - afc((int) (st->n2 - st->k + st->xl)));
++	    st->kr = exp(st->a - afc((int) (st->xr - 1))
++		     - afc((int) (st->n1 - st->xr + 1))
++		     - afc((int) (st->k - st->xr + 1))
++		     - afc((int) (st->n2 - st->k + st->xr - 1)));
++	    st->lamdl = -log(st->xl * (st->n2 - st->k + st->xl) / (st->n1 - st->xl + 1) / (st->k - st->xl + 1));
++	    st->lamdr = -log((st->n1 - st->xr + 1) * (st->k - st->xr + 1) / st->xr / (st->n2 - st->k + st->xr));
++	    st->p1 = st->d + st->d;
++	    st->p2 = st->p1 + st->kl / st->lamdl;
++	    st->p3 = st->p2 + st->kr / st->lamdr;
+ 	}
+ #ifdef DEBUG_rhyper
+ 	REprintf("rhyper(), branch III {accept/reject}: (xl,xr)= (%g,%g); (lamdl,lamdr)= (%g,%g)\n",
+-		 xl, xr, lamdl,lamdr);
+-	REprintf("-------- p123= c(%g,%g,%g)\n", p1,p2, p3);
++		 st->xl, st->xr, st->lamdl,st->lamdr);
++	REprintf("-------- p123= c(%g,%g,%g)\n", st->p1,st->p2, st->p3);
+ #endif
+ 	int n_uv = 0;
+       L30:
+-	u = unif_rand() * p3;
++	u = unif_rand() * st->p3;
+ 	v = unif_rand();
+ 	n_uv++;
+ 	if(n_uv >= 10000) {
+@@ -254,24 +258,24 @@ double rhyper(double nn1in, double nn2in, double kkin)
+ 	REprintf(" ... L30 [%d]: new (u=%g, v ~ U[0,1]=%g): ", n_uv, u,v);
+ #endif
+ 
+-	if (u < p1) {		/* rectangular region */
+-	    ix = (int) (xl + u);
+-	} else if (u <= p2) {	/* left tail */
+-	    ix = (int) (xl + log(v) / lamdl);
+-	    if (ix < minjx)
++	if (u < st->p1) {		/* rectangular region */
++	    ix = (int) (st->xl + u);
++	} else if (u <= st->p2) {	/* left tail */
++	    ix = (int) (st->xl + log(v) / st->lamdl);
++	    if (ix < st->minjx)
+ 		goto L30;
+-	    v = v * (u - p1) * lamdl;
++	    v = v * (u - st->p1) * st->lamdl;
+ 	} else {		/* right tail */
+-	    ix = (int) (xr - log(v) / lamdr);
+-	    if (ix > maxjx)
++	    ix = (int) (st->xr - log(v) / st->lamdr);
++	    if (ix > st->maxjx)
+ 		goto L30;
+-	    v = v * (u - p2) * lamdr;
++	    v = v * (u - st->p2) * st->lamdr;
+ 	}
+ 
+ 	/* acceptance/rejection test */
+ 	Rboolean reject = TRUE;
+ 
+-	if (m < 100 || ix <= 50) {
++	if (st->m < 100 || ix <= 50) {
+ 	    /* explicit evaluation */
+ 	    /* The original algorithm (and TOMS 668) have
+ 		   f = f * i * (n2 - k + i) / (n1 - i) / (k - i);
+@@ -280,12 +284,12 @@ double rhyper(double nn1in, double nn2in, double kkin)
+ 	       needed. */
+ 	    int i;
+ 	    double f = 1.0;
+-	    if (m < ix) {
+-		for (i = m + 1; i <= ix; i++)
+-		    f = f * (n1 - i + 1) * (k - i + 1) / (n2 - k + i) / i;
+-	    } else if (m > ix) {
+-		for (i = ix + 1; i <= m; i++)
+-		    f = f * i * (n2 - k + i) / (n1 - i + 1) / (k - i + 1);
++	    if (st->m < ix) {
++		for (i = st->m + 1; i <= ix; i++)
++		    f = f * (st->n1 - i + 1) * (st->k - i + 1) / (st->n2 - st->k + i) / i;
++	    } else if (st->m > ix) {
++		for (i = ix + 1; i <= st->m; i++)
++		    f = f * i * (st->n2 - st->k + i) / (st->n1 - i + 1) / (st->k - i + 1);
+ 	    }
+ 	    if (v <= f) {
+ 		reject = FALSE;
+@@ -305,12 +309,12 @@ double rhyper(double nn1in, double nn2in, double kkin)
+ 	    /* squeeze using upper and lower bounds */
+ 	    y = ix;
+ 	    y1 = y + 1.0;
+-	    ym = y - m;
+-	    yn = n1 - y + 1.0;
+-	    yk = k - y + 1.0;
+-	    nk = n2 - k + y1;
++	    ym = y - st->m;
++	    yn = st->n1 - y + 1.0;
++	    yk = st->k - y + 1.0;
++	    nk = st->n2 - st->k + y1;
+ 	    r = -ym / y1;
+-	    s = ym / yn;
++	    st->s = ym / yn;
+ 	    t = ym / yk;
+ 	    e = -ym / nk;
+ 	    g = yn * yk / (y1 * nk) - 1.0;
+@@ -319,13 +323,13 @@ double rhyper(double nn1in, double nn2in, double kkin)
+ 		dg = 1.0 + g;
+ 	    gu = g * (1.0 + g * (-0.5 + g / 3.0));
+ 	    gl = gu - .25 * (g * g * g * g) / dg;
+-	    xm = m + 0.5;
+-	    xn = n1 - m + 0.5;
+-	    xk = k - m + 0.5;
+-	    nm = n2 - k + xm;
+-	    ub = y * gu - m * gl + deltau
++	    xm = st->m + 0.5;
++	    xn = st->n1 - st->m + 0.5;
++	    xk = st->k - st->m + 0.5;
++	    nm = st->n2 - st->k + xm;
++	    ub = y * gu - st->m * gl + deltau
+ 		+ xm * r * (1. + r * (-0.5 + r / 3.0))
+-		+ xn * s * (1. + s * (-0.5 + s / 3.0))
++		+ xn * st->s * (1. + st->s * (-0.5 + st->s / 3.0))
+ 		+ xk * t * (1. + t * (-0.5 + t / 3.0))
+ 		+ nm * e * (1. + e * (-0.5 + e / 3.0));
+ 	    /* test against upper bound */
+@@ -337,9 +341,9 @@ double rhyper(double nn1in, double nn2in, double kkin)
+ 		dr = xm * (r * r * r * r);
+ 		if (r < 0.0)
+ 		    dr /= (1.0 + r);
+-		ds = xn * (s * s * s * s);
+-		if (s < 0.0)
+-		    ds /= (1.0 + s);
++		ds = xn * (st->s * st->s * st->s * st->s);
++		if (st->s < 0.0)
++		    ds /= (1.0 + st->s);
+ 		dt = xk * (t * t * t * t);
+ 		if (t < 0.0)
+ 		    dt /= (1.0 + t);
+@@ -347,14 +351,14 @@ double rhyper(double nn1in, double nn2in, double kkin)
+ 		if (e < 0.0)
+ 		    de /= (1.0 + e);
+ 		if (alv < ub - 0.25 * (dr + ds + dt + de)
+-		    + (y + m) * (gl - gu) - deltal) {
++		    + (y + st->m) * (gl - gu) - deltal) {
+ 		    reject = FALSE;
+ 		}
+ 		else {
+ 		    /* * Stirling's formula to machine accuracy
+ 		     */
+-		    if (alv <= (a - afc(ix) - afc(n1 - ix)
+-				- afc(k - ix) - afc(n2 - k + ix))) {
++		    if (alv <= (st->a - afc(ix) - afc(st->n1 - ix)
++				- afc(st->k - ix) - afc(st->n2 - st->k + ix))) {
+ 			reject = FALSE;
+ 		    } else {
+ 			reject = TRUE;
+@@ -373,7 +377,7 @@ L_finis:  /* return appropriate variate */
+ #ifdef DEBUG_rhyper
+     REprintf(" L_finis: ix = %d, then", ix);
+ #endif
+-    if ((double)kk + kk >= N) {
++    if ((double)kk + kk >= st->N) {
+ 	if (nn1 > nn2) {
+ 	    ix = kk - nn2 + ix;
+ 	} else {
 diff --git a/src/rpois.c b/src/rpois.c
-index f26f808..d195005 100644
+index f26f808..ff0371c 100644
 --- a/src/rpois.c
 +++ b/src/rpois.c
-@@ -60,12 +60,12 @@ double rpois(double mu)
+@@ -35,6 +35,7 @@
+  */
+ 
+ #include "nmath.h"
++#include "rmath_tls.h"
+ 
+ #define a0	-0.5
+ #define a1	 0.3333333
+@@ -51,6 +52,12 @@
+ 
+ #define repeat for(;;)
+ 
++void Rmath_rpois_state_init(struct rpois_state *st)
++{
++    st->muprev = 0.;
++    st->muprev2 = 0.;
++}
++
+ double rpois(double mu)
+ {
+     /* Factorial Table (0:9)! */
+@@ -59,14 +66,6 @@ double rpois(double mu)
+ 	1., 1., 2., 6., 24., 120., 720., 5040., 40320., 362880.
      };
-
-     /* These are static --- persistent between calls for same mu : */
+ 
+-    /* These are static --- persistent between calls for same mu : */
 -    static int l, m;
-+    _Thread_local static int l, m;
-
+-
 -    static double b1, b2, c, c0, c1, c2, c3;
 -    static double pp[36], p0, p, q, s, d, omega;
 -    static double big_l;/* integer "w/o overflow" */
 -    static double muprev = 0., muprev2 = 0.;/*, muold	 = 0.*/
-+    _Thread_local static double b1, b2, c, c0, c1, c2, c3;
-+    _Thread_local static double pp[36], p0, p, q, s, d, omega;
-+    _Thread_local static double big_l;/* integer "w/o overflow" */
-+    _Thread_local static double muprev = 0., muprev2 = 0.;/*, muold	 = 0.*/
-
+-
      /* Local Vars  [initialize some for -Wall]: */
      double del, difmuk= 0., E= 0., fk= 0., fx, fy, g, px, py, t, u= 0., v, x;
+     double pois = -1.;
+@@ -78,11 +77,16 @@ double rpois(double mu)
+     if (mu <= 0.)
+ 	return 0.;
+ 
++    /* Per-thread state, persistent between calls for the same mu : */
++    Rmath_tls *tls = Rmath_tls_get();
++    if (!tls) ML_WARN_return_NAN;
++    struct rpois_state *st = &tls->rpois;
++
+     big_mu = mu >= 10.;
+     if(big_mu)
+ 	new_big_mu = FALSE;
+ 
+-    if (!(big_mu && mu == muprev)) {/* maybe compute new persistent par.s */
++    if (!(big_mu && mu == st->muprev)) {/* maybe compute new persistent par.s */
+ 
+ 	if (big_mu) {
+ 	    new_big_mu = TRUE;
+@@ -90,10 +94,10 @@ double rpois(double mu)
+ 	     * The poisson probabilities pk exceed the discrete normal
+ 	     * probabilities fk whenever k >= m(mu).
+ 	     */
+-	    muprev = mu;
+-	    s = sqrt(mu);
+-	    d = 6. * mu * mu;
+-	    big_l = floor(mu - 1.1484);
++	    st->muprev = mu;
++	    st->s = sqrt(mu);
++	    st->d = 6. * mu * mu;
++	    st->big_l = floor(mu - 1.1484);
+ 	    /* = an upper bound to m(mu) for all mu >= 10.*/
+ 	}
+ 	else { /* Small mu ( < 10) -- not using normal approx. */
+@@ -101,42 +105,42 @@ double rpois(double mu)
+ 	    /* Case B. (start new table and calculate p0 if necessary) */
+ 
+ 	    /*muprev = 0.;-* such that next time, mu != muprev ..*/
+-	    if (mu != muprev) {
+-		muprev = mu;
+-		m = imax2(1, (int) mu);
+-		l = 0; /* pp[] is already ok up to pp[l] */
+-		q = p0 = p = exp(-mu);
++	    if (mu != st->muprev) {
++		st->muprev = mu;
++		st->m = imax2(1, (int) mu);
++		st->l = 0; /* pp[] is already ok up to pp[l] */
++		st->q = st->p0 = st->p = exp(-mu);
+ 	    }
+ 
+ 	    repeat {
+ 		/* Step U. uniform sample for inversion method */
+ 		u = unif_rand();
+-		if (u <= p0)
++		if (u <= st->p0)
+ 		    return 0.;
+ 
+ 		/* Step T. table comparison until the end pp[l] of the
+ 		   pp-table of cumulative poisson probabilities
+ 		   (0.458 > ~= pp[9](= 0.45792971447) for mu=10 ) */
+-		if (l != 0) {
+-		    for (k = (u <= 0.458) ? 1 : imin2(l, m);  k <= l; k++)
+-			if (u <= pp[k])
++		if (st->l != 0) {
++		    for (k = (u <= 0.458) ? 1 : imin2(st->l, st->m);  k <= st->l; k++)
++			if (u <= st->pp[k])
+ 			    return (double)k;
+-		    if (l == 35) /* u > pp[35] */
++		    if (st->l == 35) /* u > pp[35] */
+ 			continue;
+ 		}
+ 		/* Step C. creation of new poisson
+ 		   probabilities p[l..] and their cumulatives q =: pp[k] */
+-		l++;
+-		for (k = l; k <= 35; k++) {
+-		    p *= mu / k;
+-		    q += p;
+-		    pp[k] = q;
+-		    if (u <= q) {
+-			l = k;
++		st->l++;
++		for (k = st->l; k <= 35; k++) {
++		    st->p *= mu / k;
++		    st->q += st->p;
++		    st->pp[k] = st->q;
++		    if (u <= st->q) {
++			st->l = k;
+ 			return (double)k;
+ 		    }
+ 		}
+-		l = 35;
++		st->l = 35;
+ 	    } /* end(repeat) */
+ 	}/* mu < 10 */
+ 
+@@ -145,40 +149,40 @@ double rpois(double mu)
+ /* Only if mu >= 10 : ----------------------- */
+ 
+     /* Step N. normal sample */
+-    g = mu + s * norm_rand();/* norm_rand() ~ N(0,1), standard normal */
++    g = mu + st->s * norm_rand();/* norm_rand() ~ N(0,1), standard normal */
+ 
+     if (g >= 0.) {
+ 	pois = floor(g);
+ 	/* Step I. immediate acceptance if pois is large enough */
+-	if (pois >= big_l)
++	if (pois >= st->big_l)
+ 	    return pois;
+ 	/* Step S. squeeze acceptance */
+ 	fk = pois;
+ 	difmuk = mu - fk;
+ 	u = unif_rand(); /* ~ U(0,1) - sample */
+-	if (d * u >= difmuk * difmuk * difmuk)
++	if (st->d * u >= difmuk * difmuk * difmuk)
+ 	    return pois;
+     }
+ 
+     /* Step P. preparations for steps Q and H.
+        (recalculations of parameters if necessary) */
+ 
+-    if (new_big_mu || mu != muprev2) {
++    if (new_big_mu || mu != st->muprev2) {
+         /* Careful! muprev2 is not always == muprev
+ 	   because one might have exited in step I or S
+ 	   */
+-        muprev2 = mu;
+-	omega = M_1_SQRT_2PI / s;
++        st->muprev2 = mu;
++	st->omega = M_1_SQRT_2PI / st->s;
+ 	/* The quantities b1, b2, c3, c2, c1, c0 are for the Hermite
+ 	 * approximations to the discrete normal probabilities fk. */
+ 
+-	b1 = one_24 / mu;
+-	b2 = 0.3 * b1 * b1;
+-	c3 = one_7 * b1 * b2;
+-	c2 = b2 - 15. * c3;
+-	c1 = b1 - 6. * b2 + 45. * c3;
+-	c0 = 1. - b1 + 3. * b2 - 15. * c3;
+-	c = 0.1069 / mu; /* guarantees majorization by the 'hat'-function. */
++	st->b1 = one_24 / mu;
++	st->b2 = 0.3 * st->b1 * st->b1;
++	st->c3 = one_7 * st->b1 * st->b2;
++	st->c2 = st->b2 - 15. * st->c3;
++	st->c1 = st->b1 - 6. * st->b2 + 45. * st->c3;
++	st->c0 = 1. - st->b1 + 3. * st->b2 - 15. * st->c3;
++	st->c = 0.1069 / mu; /* guarantees majorization by the 'hat'-function. */
+     }
+ 
+     if (g >= 0.) {
+@@ -198,7 +202,7 @@ double rpois(double mu)
+ 	u = 2 * unif_rand() - 1.;
+ 	t = 1.8 + fsign(E, u);
+ 	if (t > -0.6744) {
+-	    pois = floor(mu + s * t);
++	    pois = floor(mu + st->s * t);
+ 	    fk = pois;
+ 	    difmuk = mu - fk;
+ 
+@@ -225,13 +229,13 @@ double rpois(double mu)
+ 		    px = fk * log(1. + v) - difmuk - del;
+ 		py = M_1_SQRT_2PI / sqrt(fk);
+ 	    }
+-	    x = (0.5 - difmuk) / s;
++	    x = (0.5 - difmuk) / st->s;
+ 	    x *= x;/* x^2 */
+ 	    fx = -0.5 * x;
+-	    fy = omega * (((c3 * x + c2) * x + c1) * x + c0);
++	    fy = st->omega * (((st->c3 * x + st->c2) * x + st->c1) * x + st->c0);
+ 	    if (kflag > 0) {
+ 		/* Step H. Hat acceptance (E is repeated on rejection) */
+-		if (c * fabs(u) <= py * exp(px + E) - fy * exp(fx + E))
++		if (st->c * fabs(u) <= py * exp(px + E) - fy * exp(fx + E))
+ 		    break;
+ 	    } else
+ 		/* Step Q. Quotient acceptance (rare case) */
 diff --git a/src/signrank.c b/src/signrank.c
-index 2cb5f5b..30c0008 100644
+index 2cb5f5b..439f915 100644
 --- a/src/signrank.c
 +++ b/src/signrank.c
-@@ -38,8 +38,8 @@
+@@ -37,51 +37,54 @@
+ 
  #include "nmath.h"
  #include "dpq.h"
-
++#include "rmath_tls.h"
+ 
 -static double *w;
 -static int allocated_n;
-+_Thread_local static double *w;
-+_Thread_local static int allocated_n;
-
++/* The table lives in the calling thread's Rmath_tls block; see rmath_tls.h.
++ * Only the pointer and its size are per-thread state -- the table itself was
++ * always on the heap. */
+ 
+-static void
+-w_free(void)
++void Rmath_signrank_state_free(struct signrank_state *st)
+ {
+-    if (!w) return;
++    if (!st->w) return;
+ 
+-    free((void *) w);
+-    w = 0;
+-    allocated_n = 0;
++    free((void *) st->w);
++    st->w = 0;
++    st->allocated_n = 0;
+ }
+ 
+ void signrank_free(void)
+ {
+-    w_free();
++    Rmath_tls *tls = Rmath_tls_ptr;
++
++    if (tls) Rmath_signrank_state_free(&tls->signrank);
+ }
+ 
  static void
- w_free(void)
+-w_init_maybe(int n)
++w_init_maybe(struct signrank_state *st, int n)
+ {
+     int u, c;
+ 
+     u = n * (n + 1) / 2;
+     c = (u / 2);
+ 
+-    if (w) {
+-        if(n != allocated_n) {
+-	    w_free();
++    if (st->w) {
++        if(n != st->allocated_n) {
++	    Rmath_signrank_state_free(st);
+ 	}
+ 	else return;
+     }
+ 
+-    if(!w) {
+-	w = (double *) calloc((size_t) c + 1, sizeof(double));
++    if(!st->w) {
++	st->w = (double *) calloc((size_t) c + 1, sizeof(double));
+ #ifdef MATHLIB_STANDALONE
+-	if (!w) MATHLIB_ERROR("%s", _("signrank allocation error"));
++	if (!st->w) MATHLIB_ERROR("%s", _("signrank allocation error"));
+ #endif
+-	allocated_n = n;
++	st->allocated_n = n;
+     }
+ }
+ 
+ static double
+-csignrank(int k, int n)
++csignrank(struct signrank_state *st, int k, int n)
+ {
+     int c, u, j;
+ 
+@@ -99,17 +102,17 @@ csignrank(int k, int n)
+ 
+     if (n == 1)
+         return 1.;
+-    if (w[0] == 1.)
+-        return w[k];
++    if (st->w[0] == 1.)
++        return st->w[k];
+ 
+-    w[0] = w[1] = 1.;
++    st->w[0] = st->w[1] = 1.;
+     for(j = 2; j < n+1; ++j) {
+         int i, end = imin2(j*(j+1)/2, c);
+ 	for(i = end; i >= j; --i)
+-	    w[i] += w[i-j];
++	    st->w[i] += st->w[i-j];
+     }
+ 
+-    return w[k];
++    return st->w[k];
+ }
+ 
+ double dsignrank(double x, double n, int give_log)
+@@ -131,8 +134,11 @@ double dsignrank(double x, double n, int give_log)
+ 	return(R_D__0);
+ 
+     int nn = (int) n;
+-    w_init_maybe(nn);
+-    d = R_D_exp(log(csignrank((int) x, nn)) - n * M_LN2);
++    Rmath_tls *tls = Rmath_tls_get();
++    if (!tls) ML_WARN_return_NAN;
++    struct signrank_state *st = &tls->signrank;
++    w_init_maybe(st, nn);
++    d = R_D_exp(log(csignrank(st, (int) x, nn)) - n * M_LN2);
+ 
+     return(d);
+ }
+@@ -157,17 +163,20 @@ double psignrank(double x, double n, int lower_tail, int log_p)
+ 	return(R_DT_1);
+ 
+     int nn = (int) n;
+-    w_init_maybe(nn);
++    Rmath_tls *tls = Rmath_tls_get();
++    if (!tls) ML_WARN_return_NAN;
++    struct signrank_state *st = &tls->signrank;
++    w_init_maybe(st, nn);
+     f = exp(- n * M_LN2);
+     p = 0;
+     if (x <= (n * (n + 1) / 4)) {
+ 	for (i = 0; i <= x; i++)
+-	    p += csignrank(i, nn) * f;
++	    p += csignrank(st, i, nn) * f;
+     }
+     else {
+ 	x = n * (n + 1) / 2 - x;
+ 	for (i = 0; i < x; i++)
+-	    p += csignrank(i, nn) * f;
++	    p += csignrank(st, i, nn) * f;
+ 	lower_tail = !lower_tail; /* p = 1 - p; */
+     }
+ 
+@@ -199,14 +208,17 @@ double qsignrank(double x, double n, int lower_tail, int log_p)
+ 	x = R_DT_qIv(x); /* lower_tail,non-log "p" */
+ 
+     int nn = (int) n;
+-    w_init_maybe(nn);
++    Rmath_tls *tls = Rmath_tls_get();
++    if (!tls) ML_WARN_return_NAN;
++    struct signrank_state *st = &tls->signrank;
++    w_init_maybe(st, nn);
+     f = exp(- n * M_LN2);
+     p = 0;
+     int q = 0;
+     if (x <= 0.5) {
+ 	x = x - 10 * DBL_EPSILON;
+ 	for (;;) {
+-	    p += csignrank(q, nn) * f;
++	    p += csignrank(st, q, nn) * f;
+ 	    if (p >= x)
+ 		break;
+ 	    q++;
+@@ -215,7 +227,7 @@ double qsignrank(double x, double n, int lower_tail, int log_p)
+     else {
+ 	x = 1 - x + 10 * DBL_EPSILON;
+ 	for (;;) {
+-	    p += csignrank(q, nn) * f;
++	    p += csignrank(st, q, nn) * f;
+ 	    if (p > x) {
+ 		q = (int)(n * (n + 1) / 2 - q);
+ 		break;
 diff --git a/src/sunif.c b/src/sunif.c
 index 6fce354..a1cf3c6 100644
 --- a/src/sunif.c
 +++ b/src/sunif.c
 @@ -20,7 +20,7 @@
-
+ 
  /* A version of Marsaglia-MultiCarry */
-
+ 
 -static unsigned int I1=1234, I2=5678;
 +_Thread_local static unsigned int I1=1234, I2=5678;
-
+ 
  void set_seed(unsigned int i1, unsigned int i2)
  {
 diff --git a/src/wilcox.c b/src/wilcox.c
-index 785ef6b..2ea300c 100644
+index 785ef6b..e6f5a67 100644
 --- a/src/wilcox.c
 +++ b/src/wilcox.c
-@@ -47,8 +47,8 @@
+@@ -42,75 +42,70 @@
+ 
+ #include "nmath.h"
+ #include "dpq.h"
++#include "rmath_tls.h"
+ 
+ #ifndef MATHLIB_STANDALONE
  #include <R_ext/Utils.h>
  #endif
-
+ 
 -static double ***w; /* to store  cwilcox(i,j,k) -> w[i][j][k] */
 -static int allocated_m, allocated_n;
-+_Thread_local static double ***w; /* to store  cwilcox(i,j,k) -> w[i][j][k] */
-+_Thread_local static int allocated_m, allocated_n;
-
++/* w[][][] lives in the calling thread's Rmath_tls block; see rmath_tls.h.
++ * Only the pointer and the two allocated sizes are per-thread state -- the
++ * jagged three-level table itself was always on the heap. */
+ 
  static void
- w_free(int m, int n)
+-w_free(int m, int n)
++w_free(struct wilcox_state *st, int m, int n)
+ {
+     int i, j;
+ 
+     for (i = m; i >= 0; i--) {
+ 	for (j = n; j >= 0; j--) {
+-	    if (w[i][j] != 0)
+-		free((void *) w[i][j]);
++	    if (st->w[i][j] != 0)
++		free((void *) st->w[i][j]);
+ 	}
+-	free((void *) w[i]);
++	free((void *) st->w[i]);
+     }
+-    free((void *) w);
+-    w = 0; allocated_m = allocated_n = 0;
++    free((void *) st->w);
++    st->w = 0; st->allocated_m = st->allocated_n = 0;
+ }
+ 
+ static void
+-w_init_maybe(int m, int n)
++w_init_maybe(struct wilcox_state *st, int m, int n)
+ {
+     int i;
+ 
+     if (m > n) {
+ 	i = n; n = m; m = i;
+     }
+-    if (w && (m > allocated_m || n > allocated_n))
+-	w_free(allocated_m, allocated_n); /* zeroes w */
++    if (st->w && (m > st->allocated_m || n > st->allocated_n))
++	w_free(st, st->allocated_m, st->allocated_n); /* zeroes w */
+ 
+-    if (!w) { /* initialize w[][] */
++    if (!st->w) { /* initialize w[][] */
+ 	m = imax2(m, WILCOX_MAX);
+ 	n = imax2(n, WILCOX_MAX);
+-	w = (double ***) calloc((size_t) m + 1, sizeof(double **));
++	st->w = (double ***) calloc((size_t) m + 1, sizeof(double **));
+ #ifdef MATHLIB_STANDALONE
+-	if (!w) MATHLIB_ERROR(_("wilcox allocation error %d"), 1);
++	if (!st->w) MATHLIB_ERROR(_("wilcox allocation error %d"), 1);
+ #endif
+ 	for (i = 0; i <= m; i++) {
+-	    w[i] = (double **) calloc((size_t) n + 1, sizeof(double *));
++	    st->w[i] = (double **) calloc((size_t) n + 1, sizeof(double *));
+ #ifdef MATHLIB_STANDALONE
+ 	    /* the apparent leak here in the in-R case should be
+ 	       swept up by the on.exit action */
+-	    if (!w[i]) {
++	    if (!st->w[i]) {
+ 		/* first free all earlier allocations */
+-		w_free(i-1, n);
++		w_free(st, i-1, n);
+ 		MATHLIB_ERROR(_("wilcox allocation error %d"), 2);
+ 	    }
+ #endif
+ 	}
+-	allocated_m = m; allocated_n = n;
++	st->allocated_m = m; st->allocated_n = n;
+     }
+ }
+ 
+-static void
+-w_free_maybe(int m, int n)
+-{
+-    if (m > WILCOX_MAX || n > WILCOX_MAX)
+-	w_free(m, n);
+-}
+-
+ 
+ /* This counts the number of choices with statistic = k */
+ static double
+-cwilcox(int k, int m, int n)
++cwilcox(struct wilcox_state *st, int k, int m, int n)
+ {
+     int c, u, i, j, l;
+ 
+@@ -140,24 +135,24 @@ cwilcox(int k, int m, int n)
+        these can only be in the first k.  So the count is the same as
+        if there were just k y's. 
+     */
+-    if (j > 0 && k < j) return cwilcox(k, i, k);    
++    if (j > 0 && k < j) return cwilcox(st, k, i, k);    
+     
+-    if (w[i][j] == 0) {
+-	w[i][j] = (double *) calloc((size_t) c + 1, sizeof(double));
++    if (st->w[i][j] == 0) {
++	st->w[i][j] = (double *) calloc((size_t) c + 1, sizeof(double));
+ #ifdef MATHLIB_STANDALONE
+-	if (!w[i][j]) MATHLIB_ERROR(_("wilcox allocation error %d"), 3);
++	if (!st->w[i][j]) MATHLIB_ERROR(_("wilcox allocation error %d"), 3);
+ #endif
+ 	for (l = 0; l <= c; l++)
+-	    w[i][j][l] = -1;
++	    st->w[i][j][l] = -1;
+     }
+-    if (w[i][j][k] < 0) {
++    if (st->w[i][j][k] < 0) {
+ 	if (j == 0) /* and hence i == 0 */
+-	    w[i][j][k] = (k == 0);
++	    st->w[i][j][k] = (k == 0);
+ 	else
+-	    w[i][j][k] = cwilcox(k - j, i - 1, j) + cwilcox(k, i, j - 1);
++	    st->w[i][j][k] = cwilcox(st, k - j, i - 1, j) + cwilcox(st, k, i, j - 1);
+ 
+     }
+-    return(w[i][j][k]);
++    return(st->w[i][j][k]);
+ }
+ 
+ double dwilcox(double x, double m, double n, int give_log)
+@@ -181,10 +176,13 @@ double dwilcox(double x, double m, double n, int give_log)
+ 	return(R_D__0);
+ 
+     int mm = (int) m, nn = (int) n, xx = (int) x;
+-    w_init_maybe(mm, nn);
++    Rmath_tls *tls = Rmath_tls_get();
++    if (!tls) ML_WARN_return_NAN;
++    struct wilcox_state *st = &tls->wilcox;
++    w_init_maybe(st, mm, nn);
+     d = give_log ?
+-	log(cwilcox(xx, mm, nn)) - lchoose(m + n, n) :
+-	    cwilcox(xx, mm, nn)  /  choose(m + n, n);
++	log(cwilcox(st, xx, mm, nn)) - lchoose(m + n, n) :
++	    cwilcox(st, xx, mm, nn)  /  choose(m + n, n);
+ 
+     return(d);
+ }
+@@ -214,18 +212,21 @@ double pwilcox(double q, double m, double n, int lower_tail, int log_p)
+ 	return(R_DT_1);
+ 
+     int mm = (int) m, nn = (int) n;
+-    w_init_maybe(mm, nn);
++    Rmath_tls *tls = Rmath_tls_get();
++    if (!tls) ML_WARN_return_NAN;
++    struct wilcox_state *st = &tls->wilcox;
++    w_init_maybe(st, mm, nn);
+     c = choose(m + n, n);
+     p = 0;
+     /* Use summation of probs over the shorter range */
+     if (q <= (m * n / 2)) {
+ 	for (i = 0; i <= q; i++)
+-	    p += cwilcox(i, mm, nn) / c;
++	    p += cwilcox(st, i, mm, nn) / c;
+     }
+     else {
+ 	q = m * n - q;
+ 	for (i = 0; i < q; i++)
+-	    p += cwilcox(i, mm, nn) / c;
++	    p += cwilcox(st, i, mm, nn) / c;
+ 	lower_tail = !lower_tail; /* p = 1 - p; */
+     }
+ 
+@@ -260,14 +261,17 @@ double qwilcox(double x, double m, double n, int lower_tail, int log_p)
+ 	x = R_DT_qIv(x); /* lower_tail,non-log "p" */
+ 
+     int mm = (int) m, nn = (int) n;
+-    w_init_maybe(mm, nn);
++    Rmath_tls *tls = Rmath_tls_get();
++    if (!tls) ML_WARN_return_NAN;
++    struct wilcox_state *st = &tls->wilcox;
++    w_init_maybe(st, mm, nn);
+     c = choose(m + n, n);
+     p = 0;
+     int q = 0;
+     if (x <= 0.5) {
+ 	x = x - 10 * DBL_EPSILON;
+ 	for (;;) {
+-	    p += cwilcox(q, mm, nn) / c;
++	    p += cwilcox(st, q, mm, nn) / c;
+ 	    if (p >= x)
+ 		break;
+ 	    q++;
+@@ -276,7 +280,7 @@ double qwilcox(double x, double m, double n, int lower_tail, int log_p)
+     else {
+ 	x = 1 - x + 10 * DBL_EPSILON;
+ 	for (;;) {
+-	    p += cwilcox(q, mm, nn) / c;
++	    p += cwilcox(st, q, mm, nn) / c;
+ 	    if (p > x) {
+ 		q = (int) (m * n - q);
+ 		break;
+@@ -323,7 +327,21 @@ double rwilcox(double m, double n)
+     return(r - n * (n - 1) / 2);
+ }
+ 
++void Rmath_wilcox_state_free(struct wilcox_state *st)
++{
++    if (st->w) w_free(st, st->allocated_m, st->allocated_n);
++}
++
+ void wilcox_free(void)
+ {
+-    w_free_maybe(allocated_m, allocated_n);
++    /* Upstream routes this through a w_free_maybe() helper that only frees
++     * when m or n exceeds WILCOX_MAX -- but w_init_maybe() floors both
++     * allocated_* at WILCOX_MAX, so for the usual m,n <= 50 the test never
++     * fires and wilcox_free() silently does nothing.  That is reasonable in R,
++     * where the table is a process-wide cache worth keeping; here it is
++     * per-thread, so a caller asking for it to be freed should get it freed.
++     * (The helper had no other caller, so it is gone.) */
++    Rmath_tls *tls = Rmath_tls_ptr;
++
++    if (tls) Rmath_wilcox_state_free(&tls->wilcox);
+ }
