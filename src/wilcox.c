@@ -102,13 +102,6 @@ w_init_maybe(struct wilcox_state *st, int m, int n)
     }
 }
 
-static void
-w_free_maybe(struct wilcox_state *st, int m, int n)
-{
-    if (m > WILCOX_MAX || n > WILCOX_MAX)
-	w_free(st, m, n);
-}
-
 
 /* This counts the number of choices with statistic = k */
 static double
@@ -341,8 +334,14 @@ void Rmath_wilcox_state_free(struct wilcox_state *st)
 
 void wilcox_free(void)
 {
+    /* Upstream routes this through a w_free_maybe() helper that only frees
+     * when m or n exceeds WILCOX_MAX -- but w_init_maybe() floors both
+     * allocated_* at WILCOX_MAX, so for the usual m,n <= 50 the test never
+     * fires and wilcox_free() silently does nothing.  That is reasonable in R,
+     * where the table is a process-wide cache worth keeping; here it is
+     * per-thread, so a caller asking for it to be freed should get it freed.
+     * (The helper had no other caller, so it is gone.) */
     Rmath_tls *tls = Rmath_tls_ptr;
 
-    if (tls) w_free_maybe(&tls->wilcox, tls->wilcox.allocated_m,
-			  tls->wilcox.allocated_n);
+    if (tls) Rmath_wilcox_state_free(&tls->wilcox);
 }
