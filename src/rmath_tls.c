@@ -28,6 +28,7 @@
 /* The library's only static TLS besides sunif.c's seed: one pointer. */
 _Thread_local Rmath_tls *Rmath_tls_ptr;
 
+static void rmath_tls_free(Rmath_tls *t);
 static void rmath_tls_release(void);
 
 /* ------------------------------------------------------------ platform shim */
@@ -40,8 +41,8 @@ static DWORD fls_index = FLS_OUT_OF_INDEXES;
 
 static void WINAPI on_thread_exit(void *p)
 {
-    free(p);
     Rmath_tls_ptr = 0;
+    rmath_tls_free((Rmath_tls *) p);
 }
 
 static void tls_setup(void)
@@ -62,10 +63,12 @@ static void tls_arm(void *p)
 static pthread_key_t tls_key;
 static int tls_key_ok;
 
+/* The runtime clears the TSD value before calling this, so there is no need to
+ * disarm the slot here. */
 static void on_thread_exit(void *p)
 {
-    free(p);
     Rmath_tls_ptr = 0;
+    rmath_tls_free((Rmath_tls *) p);
 }
 
 static void tls_setup(void)
@@ -104,14 +107,24 @@ static void rmath_tls_shutdown(void)
 
 /* ------------------------------------------------------------------- alloc */
 
+/* Release everything hanging off the container, then the container. */
+static void rmath_tls_free(Rmath_tls *t)
+{
+    Rmath_signrank_state_free(&t->signrank);
+    Rmath_wilcox_state_free(&t->wilcox);
+    free(t);
+}
+
 static void rmath_tls_release(void)
 {
-    if (!Rmath_tls_ptr)
+    Rmath_tls *t = Rmath_tls_ptr;
+
+    if (!t)
 	return;
 
-    free(Rmath_tls_ptr);
     Rmath_tls_ptr = 0;
     tls_arm(0);		/* so the thread-exit destructor cannot double-free */
+    rmath_tls_free(t);
 }
 
 /* Cold path of Rmath_tls_get().  Returns NULL if allocation failed; callers

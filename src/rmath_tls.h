@@ -74,12 +74,28 @@ struct rpois_state {
     double muprev, muprev2;
 };
 
+/* These two differ from the generators above: the state is a pointer to a
+ * table that is itself on the heap, so the container owns a second level of
+ * allocation that has to be released before the container itself. */
+
+struct signrank_state {
+    double *w;
+    int allocated_n;
+};
+
+struct wilcox_state {
+    double ***w;		/* to store  cwilcox(i,j,k) -> w[i][j][k] */
+    int allocated_m, allocated_n;
+};
+
 typedef struct {
-    struct rbeta_state   rbeta;
-    struct rbinom_state  rbinom;
-    struct rgamma_state  rgamma;
-    struct rhyper_state  rhyper;
-    struct rpois_state   rpois;
+    struct rbeta_state    rbeta;
+    struct rbinom_state   rbinom;
+    struct rgamma_state   rgamma;
+    struct rhyper_state   rhyper;
+    struct rpois_state    rpois;
+    struct signrank_state signrank;
+    struct wilcox_state   wilcox;
 } Rmath_tls;
 
 /* Each generator initialises its own struct, in its own .c file.
@@ -91,12 +107,23 @@ typedef struct {
  * patch hunk, instead of leaving them to be correlated across two files.
  *
  * Anything a hook does not name is already zero: Rmath_tls_alloc() callocs.
+ *
+ * signrank and wilcox deliberately have no hook.  They had no initialisers
+ * upstream, and they positively depend on the zeroing: a NULL w means "not
+ * allocated yet", and csignrank() uses w[0] == 1. as its "table already built"
+ * flag.  A hook there could only do harm.
  */
 void Rmath_rbeta_state_init (struct rbeta_state  *st);
 void Rmath_rbinom_state_init(struct rbinom_state *st);
 void Rmath_rgamma_state_init(struct rgamma_state *st);
 void Rmath_rhyper_state_init(struct rhyper_state *st);
 void Rmath_rpois_state_init (struct rpois_state  *st);
+
+/* Release the heap that hangs off these two, before the container is freed.
+ * The deep-free logic stays in the file that knows the table's shape --
+ * wilcox's is a jagged three-level array -- rather than in rmath_tls.c. */
+void Rmath_signrank_state_free(struct signrank_state *st);
+void Rmath_wilcox_state_free  (struct wilcox_state   *st);
 
 /* The calling thread's state, or NULL if it could not be allocated.
  *
