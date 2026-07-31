@@ -54,21 +54,31 @@ double rbeta(double aa, double bb)
     double a, b, alpha;
     double r, s, t, u1, u2, v, w, y, z;
     int qsame;
-    /* Per-thread state, to save time when many rv's are generated : */
-    Rmath_tls *tls = Rmath_tls_get();
-    if (!tls) ML_WARN_return_NAN;
-    struct rbeta_state *st = &tls->rbeta;
+    /* Uses this per-thread state to save time when many rv's are generated.
+     * It lives on the heap, not in static TLS -- see rmath_tls.h.  Aliased to
+     * upstream's names so that the body below stays identical to R's, which
+     * keeps re-applying patches/thread-local.patch after `make update`
+     * mechanical.  A future R release adding a local of the same name shows up
+     * as a compile error here, not as a silent change. */
+    struct rbeta_state *st = &Rmath_tls_get()->rbeta;
+#define beta	st->beta
+#define gamma	st->gamma
+#define delta	st->delta
+#define k1	st->k1
+#define k2	st->k2
+#define olda	st->olda
+#define oldb	st->oldb
 
     /* Test if we need new "initializing" */
-    qsame = (st->olda == aa) && (st->oldb == bb);
-    if (!qsame) { st->olda = aa; st->oldb = bb; }
+    qsame = (olda == aa) && (oldb == bb);
+    if (!qsame) { olda = aa; oldb = bb; }
 
     a = fmin2(aa, bb);
     b = fmax2(aa, bb); /* a <= b */
     alpha = a + b;
 
 #define v_w_from__u1_bet(AA) 			\
-	    v = st->beta * log(u1 / (1.0 - u1));\
+	    v = beta * log(u1 / (1.0 - u1));	\
 	    if (v <= expmax) {			\
 		w = AA * exp(v);		\
 		if(!R_FINITE(w)) w = DBL_MAX;	\
@@ -81,10 +91,10 @@ double rbeta(double aa, double bb)
 	/* changed notation, now also a <= b (was reversed) */
 
 	if (!qsame) { /* initialize */
-	    st->beta = 1.0 / a;
-	    st->delta = 1.0 + b - a;
-	    st->k1 = st->delta * (0.0138889 + 0.0416667 * a) / (b * st->beta - 0.777778);
-	    st->k2 = 0.25 + (0.5 + 0.25 / st->delta) * a;
+	    beta = 1.0 / a;
+	    delta = 1.0 + b - a;
+	    k1 = delta * (0.0138889 + 0.0416667 * a) / (b * beta - 0.777778);
+	    k2 = 0.25 + (0.5 + 0.25 / delta) * a;
 	}
 	/* FIXME: "do { } while()", but not trivially because of "continue"s:*/
 	for(;;) {
@@ -93,7 +103,7 @@ double rbeta(double aa, double bb)
 	    if (u1 < 0.5) {
 		y = u1 * u2;
 		z = u1 * y;
-		if (0.25 * u2 + z - y >= st->k1)
+		if (0.25 * u2 + z - y >= k1)
 		    continue;
 	    } else {
 		z = u1 * u1 * u2;
@@ -101,7 +111,7 @@ double rbeta(double aa, double bb)
 		    v_w_from__u1_bet(b);
 		    break;
 		}
-		if (z >= st->k2)
+		if (z >= k2)
 		    continue;
 	    }
 
@@ -116,8 +126,8 @@ double rbeta(double aa, double bb)
     else {		/* Algorithm BB */
 
 	if (!qsame) { /* initialize */
-	    st->beta = sqrt((alpha - 2.0) / (2.0 * a * b - alpha));
-	    st->gamma = a + 1.0 / st->beta;
+	    beta = sqrt((alpha - 2.0) / (2.0 * a * b - alpha));
+	    gamma = a + 1.0 / beta;
 	}
 	do {
 	    u1 = unif_rand();
@@ -126,7 +136,7 @@ double rbeta(double aa, double bb)
 	    v_w_from__u1_bet(a);
 
 	    z = u1 * u1 * u2;
-	    r = st->gamma * v - 1.3862944;
+	    r = gamma * v - 1.3862944;
 	    s = a + r - w;
 	    if (s + 2.609438 >= 5.0 * z)
 		break;
@@ -139,3 +149,11 @@ double rbeta(double aa, double bb)
 	return (aa != a) ? b / (b + w) : w / (b + w);
     }
 }
+
+#undef beta
+#undef gamma
+#undef delta
+#undef k1
+#undef k2
+#undef olda
+#undef oldb

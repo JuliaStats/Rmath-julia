@@ -32,5 +32,22 @@ jobs:
       - run: make -j
         env:
           CC: gcc
+      # The whole point of issue #56: a dlopen'd module's static TLS comes from a
+      # small process-wide surplus, so growth here breaks *other* libraries, not
+      # this one. Catch it at the source instead. Expected: 16 bytes -- the
+      # Rmath_tls pointer plus sunif.c's seed. ELF-only, hence Linux-only.
+      - name: Static TLS segment stays small
+        if: runner.os == 'Linux'
+        run: |
+          # MemSiz of the TLS program header, i.e. including .tbss.
+          size=$(readelf -lW src/libRmath-julia.so | awk '$1 == "TLS" { print $6 }')
+          # Fail loudly rather than let a readelf format change turn this into a
+          # no-op that always passes.
+          test -n "$size" || { echo "no TLS segment found in readelf output"; exit 1; }
+          # 16#... because readelf's zero-padded hex would otherwise be read as
+          # octal: $((000010)) is 8, not 16.
+          bytes=$((16#${size#0x}))
+          echo "static TLS segment: $bytes bytes"
+          test "$bytes" -le 64
       # The generators keep per-thread state, so the tests need several threads.
       - run: julia --threads=4 test.jl

@@ -114,41 +114,53 @@ double rgamma(double a, double scale)
 
     /* --- a >= 1 : GD algorithm --- */
 
-    /* Per-thread state, persistent between calls for the same `a`.  Fetched
-     * here rather than on entry so that the a < 1 GS path above, which uses
-     * none of it, never triggers the allocation. */
-    Rmath_tls *tls = Rmath_tls_get();
-    if (!tls) ML_WARN_return_NAN;
-    struct rgamma_state *st = &tls->rgamma;
+    /* Per-thread state, persistent between calls for the same `a`.  On the
+     * heap, not in static TLS -- see rmath_tls.h.  Fetched here rather than on
+     * entry so that the a < 1 GS path above, which uses none of it, never
+     * triggers the allocation.  Aliased to upstream's names so the body below
+     * stays identical to R's, which keeps re-applying
+     * patches/thread-local.patch after `make update` mechanical; a future R
+     * release adding a local of the same name shows up as a compile error
+     * here, not as a silent change. */
+    struct rgamma_state *st = &Rmath_tls_get()->rgamma;
+#define aa	st->aa
+#define aaa	st->aaa
+#define s	st->s
+#define s2	st->s2
+#define d	st->d
+#define q0	st->q0
+#define b	st->b
+#define si	st->si
+#define c	st->c
 
     /* Step 1: Recalculations of s2, s, d if a has changed */
-    if (a != st->aa) {
-	st->aa = a;
-	st->s2 = a - 0.5;
-	st->s = sqrt(st->s2);
-	st->d = sqrt32 - st->s * 12.0;
+    if (a != aa) {
+	aa = a;
+	s2 = a - 0.5;
+	s = sqrt(s2);
+	d = sqrt32 - s * 12.0;
     }
     /* Step 2: t = standard normal deviate,
                x = (s,1/2) -normal deviate. */
 
     /* immediate acceptance (i) */
     t = norm_rand();
-    x = st->s + 0.5 * t;
+    x = s + 0.5 * t;
     ret_val = x * x;
     if (t >= 0.0)
 	return scale * ret_val;
 
     /* Step 3: u = 0,1 - uniform sample. squeeze acceptance (s) */
     u = unif_rand();
-    if (st->d * u <= t * t * t)
+    if (d * u <= t * t * t)
 	return scale * ret_val;
 
     /* Step 4: recalculations of q0, b, si, c if necessary */
 
-    if (a != st->aaa) {
-	st->aaa = a;
+    if (a != aaa) {
+	aaa = a;
 	r = 1.0 / a;
-	st->q0 = ((((((q7 * r + q6) * r + q5) * r + q4) * r + q3) * r
+	q0 = ((((((q7 * r + q6) * r + q5) * r + q4) * r + q3) * r
 	       + q2) * r + q1) * r;
 
 	/* Approximation depending on size of parameter a */
@@ -156,29 +168,29 @@ double rgamma(double a, double scale)
 	/* were established by numerical experiments */
 
 	if (a <= 3.686) {
-	    st->b = 0.463 + st->s + 0.178 * st->s2;
-	    st->si = 1.235;
-	    st->c = 0.195 / st->s - 0.079 + 0.16 * st->s;
+	    b = 0.463 + s + 0.178 * s2;
+	    si = 1.235;
+	    c = 0.195 / s - 0.079 + 0.16 * s;
 	} else if (a <= 13.022) {
-	    st->b = 1.654 + 0.0076 * st->s2;
-	    st->si = 1.68 / st->s + 0.275;
-	    st->c = 0.062 / st->s + 0.024;
+	    b = 1.654 + 0.0076 * s2;
+	    si = 1.68 / s + 0.275;
+	    c = 0.062 / s + 0.024;
 	} else {
-	    st->b = 1.77;
-	    st->si = 0.75;
-	    st->c = 0.1515 / st->s;
+	    b = 1.77;
+	    si = 0.75;
+	    c = 0.1515 / s;
 	}
     }
     /* Step 5: no quotient test if x not positive */
 
     if (x > 0.0) {
 	/* Step 6: calculation of v and quotient q */
-	v = t / (st->s + st->s);
+	v = t / (s + s);
 	if (fabs(v) <= 0.25)
-	    q = st->q0 + 0.5 * t * t * ((((((a7 * v + a6) * v + a5) * v + a4) * v
+	    q = q0 + 0.5 * t * t * ((((((a7 * v + a6) * v + a5) * v + a4) * v
 				      + a3) * v + a2) * v + a1) * v;
 	else
-	    q = st->q0 - st->s * t + 0.25 * t * t + (st->s2 + st->s2) * log(1.0 + v);
+	    q = q0 - s * t + 0.25 * t * t + (s2 + s2) * log(1.0 + v);
 
 
 	/* Step 7: quotient acceptance (q) */
@@ -194,30 +206,40 @@ double rgamma(double a, double scale)
 	u = unif_rand();
 	u = u + u - 1.0;
 	if (u < 0.0)
-	    t = st->b - st->si * e;
+	    t = b - si * e;
 	else
-	    t = st->b + st->si * e;
+	    t = b + si * e;
 	/* Step	 9:  rejection if t < tau(1) = -0.71874483771719 */
 	if (t >= -0.71874483771719) {
 	    /* Step 10:	 calculation of v and quotient q */
-	    v = t / (st->s + st->s);
+	    v = t / (s + s);
 	    if (fabs(v) <= 0.25)
-		q = st->q0 + 0.5 * t * t *
+		q = q0 + 0.5 * t * t *
 		    ((((((a7 * v + a6) * v + a5) * v + a4) * v + a3) * v
 		      + a2) * v + a1) * v;
 	    else
-		q = st->q0 - st->s * t + 0.25 * t * t + (st->s2 + st->s2) * log(1.0 + v);
+		q = q0 - s * t + 0.25 * t * t + (s2 + s2) * log(1.0 + v);
 	    /* Step 11:	 hat acceptance (h) */
 	    /* (if q not positive go to step 8) */
 	    if (q > 0.0) {
 		w = expm1(q);
 		/*  ^^^^^ original code had approximation with rel.err < 2e-7 */
 		/* if t is rejected sample again at step 8 */
-		if (st->c * fabs(u) <= w * exp(e - 0.5 * t * t))
+		if (c * fabs(u) <= w * exp(e - 0.5 * t * t))
 		    break;
 	    }
 	}
     } /* repeat .. until  `t' is accepted */
-    x = st->s + 0.5 * t;
+    x = s + 0.5 * t;
     return scale * x * x;
 }
+
+#undef aa
+#undef aaa
+#undef s
+#undef s2
+#undef d
+#undef q0
+#undef b
+#undef si
+#undef c

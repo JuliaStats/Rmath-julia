@@ -134,9 +134,7 @@ double dsignrank(double x, double n, int give_log)
 	return(R_D__0);
 
     int nn = (int) n;
-    Rmath_tls *tls = Rmath_tls_get();
-    if (!tls) ML_WARN_return_NAN;
-    struct signrank_state *st = &tls->signrank;
+    struct signrank_state *st = &Rmath_tls_get()->signrank;
     w_init_maybe(st, nn);
     d = R_D_exp(log(csignrank(st, (int) x, nn)) - n * M_LN2);
 
@@ -163,9 +161,7 @@ double psignrank(double x, double n, int lower_tail, int log_p)
 	return(R_DT_1);
 
     int nn = (int) n;
-    Rmath_tls *tls = Rmath_tls_get();
-    if (!tls) ML_WARN_return_NAN;
-    struct signrank_state *st = &tls->signrank;
+    struct signrank_state *st = &Rmath_tls_get()->signrank;
     w_init_maybe(st, nn);
     f = exp(- n * M_LN2);
     p = 0;
@@ -208,9 +204,7 @@ double qsignrank(double x, double n, int lower_tail, int log_p)
 	x = R_DT_qIv(x); /* lower_tail,non-log "p" */
 
     int nn = (int) n;
-    Rmath_tls *tls = Rmath_tls_get();
-    if (!tls) ML_WARN_return_NAN;
-    struct signrank_state *st = &tls->signrank;
+    struct signrank_state *st = &Rmath_tls_get()->signrank;
     w_init_maybe(st, nn);
     f = exp(- n * M_LN2);
     p = 0;

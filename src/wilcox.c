@@ -176,9 +176,7 @@ double dwilcox(double x, double m, double n, int give_log)
 	return(R_D__0);
 
     int mm = (int) m, nn = (int) n, xx = (int) x;
-    Rmath_tls *tls = Rmath_tls_get();
-    if (!tls) ML_WARN_return_NAN;
-    struct wilcox_state *st = &tls->wilcox;
+    struct wilcox_state *st = &Rmath_tls_get()->wilcox;
     w_init_maybe(st, mm, nn);
     d = give_log ?
 	log(cwilcox(st, xx, mm, nn)) - lchoose(m + n, n) :
@@ -212,9 +210,7 @@ double pwilcox(double q, double m, double n, int lower_tail, int log_p)
 	return(R_DT_1);
 
     int mm = (int) m, nn = (int) n;
-    Rmath_tls *tls = Rmath_tls_get();
-    if (!tls) ML_WARN_return_NAN;
-    struct wilcox_state *st = &tls->wilcox;
+    struct wilcox_state *st = &Rmath_tls_get()->wilcox;
     w_init_maybe(st, mm, nn);
     c = choose(m + n, n);
     p = 0;
@@ -261,9 +257,7 @@ double qwilcox(double x, double m, double n, int lower_tail, int log_p)
 	x = R_DT_qIv(x); /* lower_tail,non-log "p" */
 
     int mm = (int) m, nn = (int) n;
-    Rmath_tls *tls = Rmath_tls_get();
-    if (!tls) ML_WARN_return_NAN;
-    struct wilcox_state *st = &tls->wilcox;
+    struct wilcox_state *st = &Rmath_tls_get()->wilcox;
     w_init_maybe(st, mm, nn);
     c = choose(m + n, n);
     p = 0;

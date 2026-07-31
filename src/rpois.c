@@ -37,6 +37,12 @@
 #include "nmath.h"
 #include "rmath_tls.h"
 
+void Rmath_rpois_state_init(struct rpois_state *st)
+{
+    st->muprev = 0.;
+    st->muprev2 = 0.;
+}
+
 #define a0	-0.5
 #define a1	 0.3333333
 #define a2	-0.2500068
@@ -51,12 +57,6 @@
 #define one_24	0.0416666666666666667
 
 #define repeat for(;;)
-
-void Rmath_rpois_state_init(struct rpois_state *st)
-{
-    st->muprev = 0.;
-    st->muprev2 = 0.;
-}
 
 double rpois(double mu)
 {
@@ -77,16 +77,39 @@ double rpois(double mu)
     if (mu <= 0.)
 	return 0.;
 
-    /* Per-thread state, persistent between calls for the same mu : */
-    Rmath_tls *tls = Rmath_tls_get();
-    if (!tls) ML_WARN_return_NAN;
-    struct rpois_state *st = &tls->rpois;
+    /* Persistent between calls for the same mu.  Per-thread, on the heap
+     * rather than in static TLS -- see rmath_tls.h.  Fetched after the checks
+     * above, which use none of it, so those paths never allocate.  Aliased to
+     * upstream's names so the body below stays identical to R's, which keeps
+     * re-applying patches/thread-local.patch after `make update` mechanical; a
+     * future R release adding a local of the same name shows up as a compile
+     * error here, not as a silent change. */
+    struct rpois_state *st = &Rmath_tls_get()->rpois;
+#define l	st->l
+#define m	st->m
+#define b1	st->b1
+#define b2	st->b2
+#define c	st->c
+#define c0	st->c0
+#define c1	st->c1
+#define c2	st->c2
+#define c3	st->c3
+#define pp	st->pp
+#define p0	st->p0
+#define p	st->p
+#define q	st->q
+#define s	st->s
+#define d	st->d
+#define omega	st->omega
+#define big_l	st->big_l
+#define muprev	st->muprev
+#define muprev2	st->muprev2
 
     big_mu = mu >= 10.;
     if(big_mu)
 	new_big_mu = FALSE;
 
-    if (!(big_mu && mu == st->muprev)) {/* maybe compute new persistent par.s */
+    if (!(big_mu && mu == muprev)) {/* maybe compute new persistent par.s */
 
 	if (big_mu) {
 	    new_big_mu = TRUE;
@@ -94,10 +117,10 @@ double rpois(double mu)
 	     * The poisson probabilities pk exceed the discrete normal
 	     * probabilities fk whenever k >= m(mu).
 	     */
-	    st->muprev = mu;
-	    st->s = sqrt(mu);
-	    st->d = 6. * mu * mu;
-	    st->big_l = floor(mu - 1.1484);
+	    muprev = mu;
+	    s = sqrt(mu);
+	    d = 6. * mu * mu;
+	    big_l = floor(mu - 1.1484);
 	    /* = an upper bound to m(mu) for all mu >= 10.*/
 	}
 	else { /* Small mu ( < 10) -- not using normal approx. */
@@ -105,42 +128,42 @@ double rpois(double mu)
 	    /* Case B. (start new table and calculate p0 if necessary) */
 
 	    /*muprev = 0.;-* such that next time, mu != muprev ..*/
-	    if (mu != st->muprev) {
-		st->muprev = mu;
-		st->m = imax2(1, (int) mu);
-		st->l = 0; /* pp[] is already ok up to pp[l] */
-		st->q = st->p0 = st->p = exp(-mu);
+	    if (mu != muprev) {
+		muprev = mu;
+		m = imax2(1, (int) mu);
+		l = 0; /* pp[] is already ok up to pp[l] */
+		q = p0 = p = exp(-mu);
 	    }
 
 	    repeat {
 		/* Step U. uniform sample for inversion method */
 		u = unif_rand();
-		if (u <= st->p0)
+		if (u <= p0)
 		    return 0.;
 
 		/* Step T. table comparison until the end pp[l] of the
 		   pp-table of cumulative poisson probabilities
 		   (0.458 > ~= pp[9](= 0.45792971447) for mu=10 ) */
-		if (st->l != 0) {
-		    for (k = (u <= 0.458) ? 1 : imin2(st->l, st->m);  k <= st->l; k++)
-			if (u <= st->pp[k])
+		if (l != 0) {
+		    for (k = (u <= 0.458) ? 1 : imin2(l, m);  k <= l; k++)
+			if (u <= pp[k])
 			    return (double)k;
-		    if (st->l == 35) /* u > pp[35] */
+		    if (l == 35) /* u > pp[35] */
 			continue;
 		}
 		/* Step C. creation of new poisson
 		   probabilities p[l..] and their cumulatives q =: pp[k] */
-		st->l++;
-		for (k = st->l; k <= 35; k++) {
-		    st->p *= mu / k;
-		    st->q += st->p;
-		    st->pp[k] = st->q;
-		    if (u <= st->q) {
-			st->l = k;
+		l++;
+		for (k = l; k <= 35; k++) {
+		    p *= mu / k;
+		    q += p;
+		    pp[k] = q;
+		    if (u <= q) {
+			l = k;
 			return (double)k;
 		    }
 		}
-		st->l = 35;
+		l = 35;
 	    } /* end(repeat) */
 	}/* mu < 10 */
 
@@ -149,40 +172,40 @@ double rpois(double mu)
 /* Only if mu >= 10 : ----------------------- */
 
     /* Step N. normal sample */
-    g = mu + st->s * norm_rand();/* norm_rand() ~ N(0,1), standard normal */
+    g = mu + s * norm_rand();/* norm_rand() ~ N(0,1), standard normal */
 
     if (g >= 0.) {
 	pois = floor(g);
 	/* Step I. immediate acceptance if pois is large enough */
-	if (pois >= st->big_l)
+	if (pois >= big_l)
 	    return pois;
 	/* Step S. squeeze acceptance */
 	fk = pois;
 	difmuk = mu - fk;
 	u = unif_rand(); /* ~ U(0,1) - sample */
-	if (st->d * u >= difmuk * difmuk * difmuk)
+	if (d * u >= difmuk * difmuk * difmuk)
 	    return pois;
     }
 
     /* Step P. preparations for steps Q and H.
        (recalculations of parameters if necessary) */
 
-    if (new_big_mu || mu != st->muprev2) {
+    if (new_big_mu || mu != muprev2) {
         /* Careful! muprev2 is not always == muprev
 	   because one might have exited in step I or S
 	   */
-        st->muprev2 = mu;
-	st->omega = M_1_SQRT_2PI / st->s;
+        muprev2 = mu;
+	omega = M_1_SQRT_2PI / s;
 	/* The quantities b1, b2, c3, c2, c1, c0 are for the Hermite
 	 * approximations to the discrete normal probabilities fk. */
 
-	st->b1 = one_24 / mu;
-	st->b2 = 0.3 * st->b1 * st->b1;
-	st->c3 = one_7 * st->b1 * st->b2;
-	st->c2 = st->b2 - 15. * st->c3;
-	st->c1 = st->b1 - 6. * st->b2 + 45. * st->c3;
-	st->c0 = 1. - st->b1 + 3. * st->b2 - 15. * st->c3;
-	st->c = 0.1069 / mu; /* guarantees majorization by the 'hat'-function. */
+	b1 = one_24 / mu;
+	b2 = 0.3 * b1 * b1;
+	c3 = one_7 * b1 * b2;
+	c2 = b2 - 15. * c3;
+	c1 = b1 - 6. * b2 + 45. * c3;
+	c0 = 1. - b1 + 3. * b2 - 15. * c3;
+	c = 0.1069 / mu; /* guarantees majorization by the 'hat'-function. */
     }
 
     if (g >= 0.) {
@@ -202,7 +225,7 @@ double rpois(double mu)
 	u = 2 * unif_rand() - 1.;
 	t = 1.8 + fsign(E, u);
 	if (t > -0.6744) {
-	    pois = floor(mu + st->s * t);
+	    pois = floor(mu + s * t);
 	    fk = pois;
 	    difmuk = mu - fk;
 
@@ -229,13 +252,13 @@ double rpois(double mu)
 		    px = fk * log(1. + v) - difmuk - del;
 		py = M_1_SQRT_2PI / sqrt(fk);
 	    }
-	    x = (0.5 - difmuk) / st->s;
+	    x = (0.5 - difmuk) / s;
 	    x *= x;/* x^2 */
 	    fx = -0.5 * x;
-	    fy = st->omega * (((st->c3 * x + st->c2) * x + st->c1) * x + st->c0);
+	    fy = omega * (((c3 * x + c2) * x + c1) * x + c0);
 	    if (kflag > 0) {
 		/* Step H. Hat acceptance (E is repeated on rejection) */
-		if (st->c * fabs(u) <= py * exp(px + E) - fy * exp(fx + E))
+		if (c * fabs(u) <= py * exp(px + E) - fy * exp(fx + E))
 		    break;
 	    } else
 		/* Step Q. Quotient acceptance (rare case) */
@@ -245,3 +268,23 @@ double rpois(double mu)
     }
     return pois;
 }
+
+#undef l
+#undef m
+#undef b1
+#undef b2
+#undef c
+#undef c0
+#undef c1
+#undef c2
+#undef c3
+#undef pp
+#undef p0
+#undef p
+#undef q
+#undef s
+#undef d
+#undef omega
+#undef big_l
+#undef muprev
+#undef muprev2

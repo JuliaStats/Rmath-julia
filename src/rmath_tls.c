@@ -23,6 +23,7 @@
 
 #include <stdlib.h>
 
+#include "nmath.h"
 #include "rmath_tls.h"
 
 /* The library's only static TLS besides sunif.c's seed: one pointer. */
@@ -41,7 +42,7 @@ static DWORD fls_index = FLS_OUT_OF_INDEXES;
 
 static void WINAPI on_thread_exit(void *p)
 {
-    Rmath_tls_ptr = 0;
+    Rmath_tls_ptr = NULL;
     rmath_tls_free((Rmath_tls *) p);
 }
 
@@ -53,7 +54,7 @@ static void tls_setup(void)
 static void tls_arm(void *p)
 {
     if (fls_index != FLS_OUT_OF_INDEXES)
-	FlsSetValue(fls_index, p);
+        FlsSetValue(fls_index, p);
 }
 
 #else
@@ -67,7 +68,7 @@ static int tls_key_ok;
  * disarm the slot here. */
 static void on_thread_exit(void *p)
 {
-    Rmath_tls_ptr = 0;
+    Rmath_tls_ptr = NULL;
     rmath_tls_free((Rmath_tls *) p);
 }
 
@@ -79,7 +80,7 @@ static void tls_setup(void)
 static void tls_arm(void *p)
 {
     if (tls_key_ok)
-	pthread_setspecific(tls_key, p);
+        pthread_setspecific(tls_key, p);
 }
 
 #endif
@@ -120,21 +121,26 @@ static void rmath_tls_release(void)
     Rmath_tls *t = Rmath_tls_ptr;
 
     if (!t)
-	return;
+        return;
 
-    Rmath_tls_ptr = 0;
-    tls_arm(0);		/* so the thread-exit destructor cannot double-free */
+    Rmath_tls_ptr = NULL;
+    tls_arm(NULL);      /* so the thread-exit destructor cannot double-free */
     rmath_tls_free(t);
 }
 
-/* Cold path of Rmath_tls_get().  Returns NULL if allocation failed; callers
- * turn that into NaN. */
+/* Cold path of Rmath_tls_get(); never returns NULL.
+ *
+ * A failed allocation is reported the same way signrank.c and wilcox.c already
+ * report a failed table allocation: there is nothing a caller could do with the
+ * information, and the alternative -- handing back a NaN -- would be silent.
+ * ML_WARN_return_NAN looks like it warns, but ML_WARNING is gated on
+ * `x > ME_DOMAIN` (nmath.h), so with ME_DOMAIN it expands to nothing at all. */
 Rmath_tls *Rmath_tls_alloc(void)
 {
     Rmath_tls *t = (Rmath_tls *) calloc(1, sizeof(Rmath_tls));
 
     if (!t)
-	return 0;
+        MATHLIB_ERROR("%s", _("Rmath per-thread state allocation error"));
 
     /* calloc zeroed everything; each generator restores its own sentinels. */
     Rmath_rbeta_state_init (&t->rbeta);

@@ -29,6 +29,15 @@ simplify the build process).
 survives the update — see the section below and
 https://github.com/JuliaStats/Rmath-julia/pull/50.
 
+The patch must contain **only** files the extraction actually overwrites — currently the
+seven in `src/` that R ships under `src/nmath/`. Files we keep locally are not re-extracted,
+so a hunk for one of them would be re-applied to an already-patched file: `patch` reports
+`Reversed (or previously applied) patch detected`, and non-interactively it assumes `-R` and
+*undoes* the change. `src/sunif.c` is the one to watch, since R ships it under
+`src/nmath/standalone/` which the extraction excludes; its `_Thread_local` seed is committed
+directly and must stay out of the patch. To regenerate, diff a pristine extraction against
+`src/` and keep only the overwritten files.
+
 Per-thread state
 ----------------
 
@@ -47,7 +56,23 @@ thread-local pointer (`src/rmath_tls.h`). The budget is now **16 bytes**: that p
 plus `sunif.c`'s seed. CI asserts the segment stays small, so a regression here fails the
 build rather than surfacing later as somebody else's load failure.
 
-Two rules when touching this code:
+Each generator reaches its own slice of the container at the point where it first needs
+it, and then aliases the fields back to upstream's names:
+
+```c
+    struct rbeta_state *st = &Rmath_tls_get()->rbeta;
+#define beta	st->beta
+#define olda	st->olda
+```
+
+That keeps the function bodies byte-identical to R's, so an R release that edits the
+algorithm does not conflict with this fork: the only upstream lines the patch removes are
+the `static` declarations themselves. The `#define`s are undone by a matching `#undef`
+block after the function. If a future R release introduces a *local* variable with the
+same name as one of the aliased fields, the alias expands into it and the compile fails at
+that line — noisy, but not silent. Fix it by renaming the alias, never the upstream local.
+
+Three rules when touching this code:
 
 1. **New mutable per-thread state goes in `Rmath_tls`, not in a new `_Thread_local`.**
    Add a field to the relevant `struct <name>_state`, and if it needs a non-zero initial
@@ -59,13 +84,19 @@ Two rules when touching this code:
    upstream need no hook entry — but write them out anyway to keep the mapping
    one-for-one.
 
-2. **Only per-thread state belongs there at all.** Read-only coefficient tables are
+2. **Fetch the state after the early returns, not on entry.** Every generator has escape
+   paths — argument validation, degenerate parameters, an `INT_MAX` fallback that delegates
+   elsewhere — that touch none of the cached state. Fetching below them means a caller that
+   only ever hits those paths never allocates the container at all.
+
+3. **Only per-thread state belongs there at all.** Read-only coefficient tables are
    already thread-safe; making them thread-local advertises per-thread state that does
-   not exist, and at `-O3` the compiler folds them anyway. Keep them `const static`.
-   `rexpm1()` in `src/toms708.c` and `fact[]` in `src/rpois.c` are examples. A quick way
-   to check whether a variable is genuinely written: add `const` to its declaration and
-   see whether the compiler rejects an assignment (use `-ferror-limit=0`, or clang stops
-   at 20 diagnostics and you will miss some).
+   not exist, and at `-O3` the compiler folds them anyway. Leave them exactly as upstream
+   has them — which is `const static` for `fact[]` in `src/rpois.c` but plain `static` for
+   the coefficients in `rexpm1()` in `src/toms708.c`; both are fine, and neither is worth a
+   diff. A quick way to check whether a variable is genuinely written: add `const` to its
+   declaration and see whether the compiler rejects an assignment (use `-ferror-limit=0`,
+   or clang stops at 20 diagnostics and you will miss some).
 
 Cleanup is automatic — `src/rmath_tls.c` registers a thread-exit destructor via
 `pthread_key_create()` on POSIX and `FlsAlloc()` on Windows — so there is nothing for

@@ -22,10 +22,13 @@
  *
  *  Every field below is written by the generator that owns it -- verified by
  *  const-qualifying each one and checking the compiler rejects the assignment.
- *  Read-only coefficient tables stay `const static` where they are; marking
- *  those thread-local would advertise per-thread state that does not exist.
+ *  Read-only coefficient tables are left exactly as upstream has them, which is
+ *  `static` in some places and `const static` in others; marking those
+ *  thread-local would advertise per-thread state that does not exist.
  *
- *  Field names are kept identical to upstream R, so that re-applying
+ *  Field names are kept identical to upstream R, and each generator aliases
+ *  them back to those names with a block of `#define`s at its fetch site, so
+ *  the function bodies stay byte-identical to R's and re-applying
  *  patches/thread-local.patch after `make update` stays mechanical.
  */
 
@@ -125,7 +128,8 @@ void Rmath_rpois_state_init (struct rpois_state  *st);
 void Rmath_signrank_state_free(struct signrank_state *st);
 void Rmath_wilcox_state_free  (struct wilcox_state   *st);
 
-/* The calling thread's state, or NULL if it could not be allocated.
+/* The calling thread's state.  Never NULL: a failed allocation raises
+ * MATHLIB_ERROR from Rmath_tls_alloc(), so callers need no error path.
  *
  * Split so that the common case is an inlined load-and-test while the
  * allocation stays out of line: this sits on the path of every rbeta, rbinom,
