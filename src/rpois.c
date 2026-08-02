@@ -268,23 +268,3 @@ double rpois(double mu)
     }
     return pois;
 }
-
-#undef l
-#undef m
-#undef b1
-#undef b2
-#undef c
-#undef c0
-#undef c1
-#undef c2
-#undef c3
-#undef pp
-#undef p0
-#undef p
-#undef q
-#undef s
-#undef d
-#undef omega
-#undef big_l
-#undef muprev
-#undef muprev2

@@ -67,10 +67,10 @@ it, and then aliases the fields back to upstream's names:
 
 That keeps the function bodies byte-identical to R's, so an R release that edits the
 algorithm does not conflict with this fork: the only upstream lines the patch removes are
-the `static` declarations themselves. The `#define`s are undone by a matching `#undef`
-block after the function. If a future R release introduces a *local* variable with the
-same name as one of the aliased fields, the alias expands into it and the compile fails at
-that line — noisy, but not silent. Fix it by renaming the alias, never the upstream local.
+the `static` declarations themselves. If a future R release introduces a *local* variable
+with the same name as one of the aliased fields, the alias expands into it and the compile
+fails at that line — noisy, but not silent. Fix it by renaming the alias, never the
+upstream local.
 
 Three rules when touching this code:
 

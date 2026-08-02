@@ -417,27 +417,3 @@ L_finis:  /* return appropriate variate */
 #endif
     return ix;
 }
-
-#undef ks
-#undef n1s
-#undef n2s
-#undef m
-#undef minjx
-#undef maxjx
-#undef k
-#undef n1
-#undef n2
-#undef N
-#undef w
-#undef a
-#undef d
-#undef s
-#undef xl
-#undef xr
-#undef kl
-#undef kr
-#undef lamdl
-#undef lamdr
-#undef p1
-#undef p2
-#undef p3

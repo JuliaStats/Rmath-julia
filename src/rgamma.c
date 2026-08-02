@@ -233,13 +233,3 @@ double rgamma(double a, double scale)
     x = s + 0.5 * t;
     return scale * x * x;
 }
-
-#undef aa
-#undef aaa
-#undef s
-#undef s2
-#undef d
-#undef q0
-#undef b
-#undef si
-#undef c

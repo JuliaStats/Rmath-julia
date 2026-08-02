@@ -1,5 +1,5 @@
 diff --git a/src/rbeta.c b/src/rbeta.c
-index 045451e..29c7830 100644
+index 045451e..7538f80 100644
 --- a/src/rbeta.c
 +++ b/src/rbeta.c
 @@ -27,9 +27,16 @@
@@ -45,20 +45,8 @@ index 045451e..29c7830 100644
  
      /* Test if we need new "initializing" */
      qsame = (olda == aa) && (oldb == bb);
-@@ -133,3 +149,11 @@ double rbeta(double aa, double bb)
- 	return (aa != a) ? b / (b + w) : w / (b + w);
-     }
- }
-+
-+#undef beta
-+#undef gamma
-+#undef delta
-+#undef k1
-+#undef k2
-+#undef olda
-+#undef oldb
 diff --git a/src/rbinom.c b/src/rbinom.c
-index 9fb34f5..de76d3a 100644
+index 9fb34f5..ef7b4bc 100644
 --- a/src/rbinom.c
 +++ b/src/rbinom.c
 @@ -39,20 +39,18 @@
@@ -122,29 +110,8 @@ index 9fb34f5..de76d3a 100644
      p = fmin2(pp, 1. - pp);
      q = 1. - p;
      np = n * p;
-@@ -203,3 +227,20 @@ double rbinom(double nin, double pp)
- 	 ix = n - ix;
-   return (double)ix;
- }
-+
-+#undef c
-+#undef fm
-+#undef npq
-+#undef p1
-+#undef p2
-+#undef p3
-+#undef p4
-+#undef qn
-+#undef xl
-+#undef xll
-+#undef xlr
-+#undef xm
-+#undef xr
-+#undef psave
-+#undef nsave
-+#undef m
 diff --git a/src/rgamma.c b/src/rgamma.c
-index e182f6e..d3ffcb0 100644
+index e182f6e..f8b43b2 100644
 --- a/src/rgamma.c
 +++ b/src/rgamma.c
 @@ -49,6 +49,13 @@
@@ -200,22 +167,8 @@ index e182f6e..d3ffcb0 100644
      /* Step 1: Recalculations of s2, s, d if a has changed */
      if (a != aa) {
  	aa = a;
-@@ -213,3 +233,13 @@ double rgamma(double a, double scale)
-     x = s + 0.5 * t;
-     return scale * x * x;
- }
-+
-+#undef aa
-+#undef aaa
-+#undef s
-+#undef s2
-+#undef d
-+#undef q0
-+#undef b
-+#undef si
-+#undef c
 diff --git a/src/rhyper.c b/src/rhyper.c
-index 129ef2e..194537d 100644
+index 129ef2e..15d833f 100644
 --- a/src/rhyper.c
 +++ b/src/rhyper.c
 @@ -42,6 +42,7 @@
@@ -298,36 +251,8 @@ index 129ef2e..194537d 100644
      /* if new parameter values, initialize */
      if (nn1 != n1s || nn2 != n2s) { // n1 | n2 is changed: setup all
  	setup1 = TRUE;	setup2 = TRUE;
-@@ -387,3 +417,27 @@ L_finis:  /* return appropriate variate */
- #endif
-     return ix;
- }
-+
-+#undef ks
-+#undef n1s
-+#undef n2s
-+#undef m
-+#undef minjx
-+#undef maxjx
-+#undef k
-+#undef n1
-+#undef n2
-+#undef N
-+#undef w
-+#undef a
-+#undef d
-+#undef s
-+#undef xl
-+#undef xr
-+#undef kl
-+#undef kr
-+#undef lamdl
-+#undef lamdr
-+#undef p1
-+#undef p2
-+#undef p3
 diff --git a/src/rpois.c b/src/rpois.c
-index f26f808..60ae221 100644
+index f26f808..29f8bf9 100644
 --- a/src/rpois.c
 +++ b/src/rpois.c
 @@ -35,6 +35,13 @@
@@ -394,30 +319,6 @@ index f26f808..60ae221 100644
      big_mu = mu >= 10.;
      if(big_mu)
  	new_big_mu = FALSE;
-@@ -241,3 +268,23 @@ double rpois(double mu)
-     }
-     return pois;
- }
-+
-+#undef l
-+#undef m
-+#undef b1
-+#undef b2
-+#undef c
-+#undef c0
-+#undef c1
-+#undef c2
-+#undef c3
-+#undef pp
-+#undef p0
-+#undef p
-+#undef q
-+#undef s
-+#undef d
-+#undef omega
-+#undef big_l
-+#undef muprev
-+#undef muprev2
 diff --git a/src/signrank.c b/src/signrank.c
 index 2cb5f5b..f779a4a 100644
 --- a/src/signrank.c

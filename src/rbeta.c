@@ -149,11 +149,3 @@ double rbeta(double aa, double bb)
 	return (aa != a) ? b / (b + w) : w / (b + w);
     }
 }
-
-#undef beta
-#undef gamma
-#undef delta
-#undef k1
-#undef k2
-#undef olda
-#undef oldb

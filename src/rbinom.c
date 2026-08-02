@@ -227,20 +227,3 @@ double rbinom(double nin, double pp)
 	 ix = n - ix;
   return (double)ix;
 }
-
-#undef c
-#undef fm
-#undef npq
-#undef p1
-#undef p2
-#undef p3
-#undef p4
-#undef qn
-#undef xl
-#undef xll
-#undef xlr
-#undef xm
-#undef xr
-#undef psave
-#undef nsave
-#undef m
