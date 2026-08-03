@@ -42,75 +42,70 @@
 
 #include "nmath.h"
 #include "dpq.h"
+#include "rmath_tls.h"
 
 #ifndef MATHLIB_STANDALONE
 #include <R_ext/Utils.h>
 #endif
 
-_Thread_local static double ***w; /* to store  cwilcox(i,j,k) -> w[i][j][k] */
-_Thread_local static int allocated_m, allocated_n;
+/* w[][][] lives in the calling thread's Rmath_tls block; see rmath_tls.h.
+ * Only the pointer and the two allocated sizes are per-thread state -- the
+ * jagged three-level table itself was always on the heap. */
 
 static void
-w_free(int m, int n)
+w_free(struct wilcox_state *st, int m, int n)
 {
     int i, j;
 
     for (i = m; i >= 0; i--) {
 	for (j = n; j >= 0; j--) {
-	    if (w[i][j] != 0)
-		free((void *) w[i][j]);
+	    if (st->w[i][j] != 0)
+		free((void *) st->w[i][j]);
 	}
-	free((void *) w[i]);
+	free((void *) st->w[i]);
     }
-    free((void *) w);
-    w = 0; allocated_m = allocated_n = 0;
+    free((void *) st->w);
+    st->w = 0; st->allocated_m = st->allocated_n = 0;
 }
 
 static void
-w_init_maybe(int m, int n)
+w_init_maybe(struct wilcox_state *st, int m, int n)
 {
     int i;
 
     if (m > n) {
 	i = n; n = m; m = i;
     }
-    if (w && (m > allocated_m || n > allocated_n))
-	w_free(allocated_m, allocated_n); /* zeroes w */
+    if (st->w && (m > st->allocated_m || n > st->allocated_n))
+	w_free(st, st->allocated_m, st->allocated_n); /* zeroes w */
 
-    if (!w) { /* initialize w[][] */
+    if (!st->w) { /* initialize w[][] */
 	m = imax2(m, WILCOX_MAX);
 	n = imax2(n, WILCOX_MAX);
-	w = (double ***) calloc((size_t) m + 1, sizeof(double **));
+	st->w = (double ***) calloc((size_t) m + 1, sizeof(double **));
 #ifdef MATHLIB_STANDALONE
-	if (!w) MATHLIB_ERROR(_("wilcox allocation error %d"), 1);
+	if (!st->w) MATHLIB_ERROR(_("wilcox allocation error %d"), 1);
 #endif
 	for (i = 0; i <= m; i++) {
-	    w[i] = (double **) calloc((size_t) n + 1, sizeof(double *));
+	    st->w[i] = (double **) calloc((size_t) n + 1, sizeof(double *));
 #ifdef MATHLIB_STANDALONE
 	    /* the apparent leak here in the in-R case should be
 	       swept up by the on.exit action */
-	    if (!w[i]) {
+	    if (!st->w[i]) {
 		/* first free all earlier allocations */
-		w_free(i-1, n);
+		w_free(st, i-1, n);
 		MATHLIB_ERROR(_("wilcox allocation error %d"), 2);
 	    }
 #endif
 	}
-	allocated_m = m; allocated_n = n;
+	st->allocated_m = m; st->allocated_n = n;
     }
-}
-
-static void
-w_free_maybe(int m, int n)
-{
-    if (m > WILCOX_MAX || n > WILCOX_MAX)
-	w_free(m, n);
 }
 
 
 /* This counts the number of choices with statistic = k */
 static double
-cwilcox(int k, int m, int n)
+cwilcox(struct wilcox_state *st, int k, int m, int n)
 {
     int c, u, i, j, l;
 
@@ -140,24 +135,24 @@ cwilcox(int k, int m, int n)
        these can only be in the first k.  So the count is the same as
        if there were just k y's. 
     */
-    if (j > 0 && k < j) return cwilcox(k, i, k);    
+    if (j > 0 && k < j) return cwilcox(st, k, i, k);    
     
-    if (w[i][j] == 0) {
-	w[i][j] = (double *) calloc((size_t) c + 1, sizeof(double));
+    if (st->w[i][j] == 0) {
+	st->w[i][j] = (double *) calloc((size_t) c + 1, sizeof(double));
 #ifdef MATHLIB_STANDALONE
-	if (!w[i][j]) MATHLIB_ERROR(_("wilcox allocation error %d"), 3);
+	if (!st->w[i][j]) MATHLIB_ERROR(_("wilcox allocation error %d"), 3);
 #endif
 	for (l = 0; l <= c; l++)
-	    w[i][j][l] = -1;
+	    st->w[i][j][l] = -1;
     }
-    if (w[i][j][k] < 0) {
+    if (st->w[i][j][k] < 0) {
 	if (j == 0) /* and hence i == 0 */
-	    w[i][j][k] = (k == 0);
+	    st->w[i][j][k] = (k == 0);
 	else
-	    w[i][j][k] = cwilcox(k - j, i - 1, j) + cwilcox(k, i, j - 1);
+	    st->w[i][j][k] = cwilcox(st, k - j, i - 1, j) + cwilcox(st, k, i, j - 1);
 
     }
-    return(w[i][j][k]);
+    return(st->w[i][j][k]);
 }
 
 double dwilcox(double x, double m, double n, int give_log)
@@ -181,10 +176,11 @@ double dwilcox(double x, double m, double n, int give_log)
 	return(R_D__0);
 
     int mm = (int) m, nn = (int) n, xx = (int) x;
-    w_init_maybe(mm, nn);
+    struct wilcox_state *st = &Rmath_tls_get()->wilcox;
+    w_init_maybe(st, mm, nn);
     d = give_log ?
-	log(cwilcox(xx, mm, nn)) - lchoose(m + n, n) :
-	    cwilcox(xx, mm, nn)  /  choose(m + n, n);
+	log(cwilcox(st, xx, mm, nn)) - lchoose(m + n, n) :
+	    cwilcox(st, xx, mm, nn)  /  choose(m + n, n);
 
     return(d);
 }
@@ -214,18 +210,19 @@ double pwilcox(double q, double m, double n, int lower_tail, int log_p)
 	return(R_DT_1);
 
     int mm = (int) m, nn = (int) n;
-    w_init_maybe(mm, nn);
+    struct wilcox_state *st = &Rmath_tls_get()->wilcox;
+    w_init_maybe(st, mm, nn);
     c = choose(m + n, n);
     p = 0;
     /* Use summation of probs over the shorter range */
     if (q <= (m * n / 2)) {
 	for (i = 0; i <= q; i++)
-	    p += cwilcox(i, mm, nn) / c;
+	    p += cwilcox(st, i, mm, nn) / c;
     }
     else {
 	q = m * n - q;
 	for (i = 0; i < q; i++)
-	    p += cwilcox(i, mm, nn) / c;
+	    p += cwilcox(st, i, mm, nn) / c;
 	lower_tail = !lower_tail; /* p = 1 - p; */
     }
 
@@ -260,14 +257,15 @@ double qwilcox(double x, double m, double n, int lower_tail, int log_p)
 	x = R_DT_qIv(x); /* lower_tail,non-log "p" */
 
     int mm = (int) m, nn = (int) n;
-    w_init_maybe(mm, nn);
+    struct wilcox_state *st = &Rmath_tls_get()->wilcox;
+    w_init_maybe(st, mm, nn);
     c = choose(m + n, n);
     p = 0;
     int q = 0;
     if (x <= 0.5) {
 	x = x - 10 * DBL_EPSILON;
 	for (;;) {
-	    p += cwilcox(q, mm, nn) / c;
+	    p += cwilcox(st, q, mm, nn) / c;
 	    if (p >= x)
 		break;
 	    q++;
@@ -276,7 +274,7 @@ double qwilcox(double x, double m, double n, int lower_tail, int log_p)
     else {
 	x = 1 - x + 10 * DBL_EPSILON;
 	for (;;) {
-	    p += cwilcox(q, mm, nn) / c;
+	    p += cwilcox(st, q, mm, nn) / c;
 	    if (p > x) {
 		q = (int) (m * n - q);
 		break;
@@ -323,7 +321,21 @@ double rwilcox(double m, double n)
     return(r - n * (n - 1) / 2);
 }
 
+void Rmath_wilcox_state_free(struct wilcox_state *st)
+{
+    if (st->w) w_free(st, st->allocated_m, st->allocated_n);
+}
+
 void wilcox_free(void)
 {
-    w_free_maybe(allocated_m, allocated_n);
+    /* Upstream routes this through a w_free_maybe() helper that only frees
+     * when m or n exceeds WILCOX_MAX -- but w_init_maybe() floors both
+     * allocated_* at WILCOX_MAX, so for the usual m,n <= 50 the test never
+     * fires and wilcox_free() silently does nothing.  That is reasonable in R,
+     * where the table is a process-wide cache worth keeping; here it is
+     * per-thread, so a caller asking for it to be freed should get it freed.
+     * (The helper had no other caller, so it is gone.) */
+    Rmath_tls *tls = Rmath_tls_ptr;
+
+    if (tls) Rmath_wilcox_state_free(&tls->wilcox);
 }

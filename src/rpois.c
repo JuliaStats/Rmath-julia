@@ -35,6 +35,13 @@
  */
 
 #include "nmath.h"
+#include "rmath_tls.h"
+
+void Rmath_rpois_state_init(struct rpois_state *st)
+{
+    st->muprev = 0.;
+    st->muprev2 = 0.;
+}
 
 #define a0	-0.5
 #define a1	 0.3333333
@@ -59,14 +66,6 @@ double rpois(double mu)
 	1., 1., 2., 6., 24., 120., 720., 5040., 40320., 362880.
     };
 
-    /* These are static --- persistent between calls for same mu : */
-    _Thread_local static int l, m;
-
-    _Thread_local static double b1, b2, c, c0, c1, c2, c3;
-    _Thread_local static double pp[36], p0, p, q, s, d, omega;
-    _Thread_local static double big_l;/* integer "w/o overflow" */
-    _Thread_local static double muprev = 0., muprev2 = 0.;/*, muold	 = 0.*/
-
     /* Local Vars  [initialize some for -Wall]: */
     double del, difmuk= 0., E= 0., fk= 0., fx, fy, g, px, py, t, u= 0., v, x;
     double pois = -1.;
@@ -77,6 +76,34 @@ double rpois(double mu)
 
     if (mu <= 0.)
 	return 0.;
+
+    /* Persistent between calls for the same mu.  Per-thread, on the heap
+     * rather than in static TLS -- see rmath_tls.h.  Fetched after the checks
+     * above, which use none of it, so those paths never allocate.  Aliased to
+     * upstream's names so the body below stays identical to R's, which keeps
+     * re-applying patches/thread-local.patch after `make update` mechanical; a
+     * future R release adding a local of the same name shows up as a compile
+     * error here, not as a silent change. */
+    struct rpois_state *st = &Rmath_tls_get()->rpois;
+#define l	st->l
+#define m	st->m
+#define b1	st->b1
+#define b2	st->b2
+#define c	st->c
+#define c0	st->c0
+#define c1	st->c1
+#define c2	st->c2
+#define c3	st->c3
+#define pp	st->pp
+#define p0	st->p0
+#define p	st->p
+#define q	st->q
+#define s	st->s
+#define d	st->d
+#define omega	st->omega
+#define big_l	st->big_l
+#define muprev	st->muprev
+#define muprev2	st->muprev2
 
     big_mu = mu >= 10.;
     if(big_mu)

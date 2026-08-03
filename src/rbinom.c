@@ -39,20 +39,18 @@
 #include "dpq.h"
 #include <stdlib.h>
 #include <limits.h>
+#include "rmath_tls.h"
 
 #define repeat for(;;)
 
+void Rmath_rbinom_state_init(struct rbinom_state *st)
+{
+    st->psave = -1.0;
+    st->nsave = -1;
+}
+
 double rbinom(double nin, double pp)
 {
-    /* FIXME: These should become THREAD_specific globals : */
-
-    _Thread_local static double c, fm, npq, p1, p2, p3, p4, qn;
-    _Thread_local static double xl, xll, xlr, xm, xr;
-
-    _Thread_local static double psave = -1.0;
-    _Thread_local static int nsave = -1;
-    _Thread_local static int m;
-
     double f, f1, f2, u, v, w, w2, x, x1, x2, z, z2;
     double p, q, np, g, r, al, alv, amaxp, ffm, ynorm;
     int i, ix, k, n;
@@ -72,6 +70,32 @@ double rbinom(double nin, double pp)
 	return qbinom(unif_rand(), r, pp, /*lower_tail*/ 0, /*log_p*/ 0);
     /* else */
     n = (int) r;
+
+    /* Per-thread setup cache, persistent between calls for the same (n, pp).
+     * On the heap, not in static TLS -- see rmath_tls.h.  Fetched after the
+     * validation and the r >= INT_MAX escape above, neither of which uses it,
+     * so those paths never allocate.  Aliased to upstream's names so the body
+     * below stays identical to R's, which keeps re-applying
+     * patches/thread-local.patch after `make update` mechanical; a future R
+     * release adding a local of the same name shows up as a compile error
+     * here, not as a silent change. */
+    struct rbinom_state *st = &Rmath_tls_get()->rbinom;
+#define c	st->c
+#define fm	st->fm
+#define npq	st->npq
+#define p1	st->p1
+#define p2	st->p2
+#define p3	st->p3
+#define p4	st->p4
+#define qn	st->qn
+#define xl	st->xl
+#define xll	st->xll
+#define xlr	st->xlr
+#define xm	st->xm
+#define xr	st->xr
+#define psave	st->psave
+#define nsave	st->nsave
+#define m	st->m
 
     p = fmin2(pp, 1. - pp);
     q = 1. - p;

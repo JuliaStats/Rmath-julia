@@ -27,8 +27,15 @@
  */
 
 #include "nmath.h"
+#include "rmath_tls.h"
 
 #define expmax	(DBL_MAX_EXP * M_LN2)/* = log(DBL_MAX) */
+
+void Rmath_rbeta_state_init(struct rbeta_state *st)
+{
+    st->olda = -1.0;
+    st->oldb = -1.0;
+}
 
 double rbeta(double aa, double bb)
 {
@@ -47,11 +54,20 @@ double rbeta(double aa, double bb)
     double a, b, alpha;
     double r, s, t, u1, u2, v, w, y, z;
     int qsame;
-    /* FIXME:  Keep Globals (properly) for threading */
-    /* Uses these GLOBALS to save time when many rv's are generated : */
-    _Thread_local static double beta, gamma, delta, k1, k2;
-    _Thread_local static double olda = -1.0;
-    _Thread_local static double oldb = -1.0;
+    /* Uses this per-thread state to save time when many rv's are generated.
+     * It lives on the heap, not in static TLS -- see rmath_tls.h.  Aliased to
+     * upstream's names so that the body below stays identical to R's, which
+     * keeps re-applying patches/thread-local.patch after `make update`
+     * mechanical.  A future R release adding a local of the same name shows up
+     * as a compile error here, not as a silent change. */
+    struct rbeta_state *st = &Rmath_tls_get()->rbeta;
+#define beta	st->beta
+#define gamma	st->gamma
+#define delta	st->delta
+#define k1	st->k1
+#define k2	st->k2
+#define olda	st->olda
+#define oldb	st->oldb
 
     /* Test if we need new "initializing" */
     qsame = (olda == aa) && (oldb == bb);

@@ -55,3 +55,26 @@ end
         f(Qs[i])
     end
 end
+
+# Generator state is per-thread (see README, "Per-thread state"), so a thread
+# drawing with its own parameters and its own seed must get the same sequence as
+# if it ran alone. Driven by the library's own seeded generator, since Julia's
+# rand is shared across threads. draws() has no yield points, so a task runs its
+# whole sequence on one thread without interleaving with another.
+@testset "per-thread state" begin
+    unsafe_store!(cglobal((:unif_rand_ptr, libRmath), Ptr{Cvoid}),
+                  Libdl.dlsym(Libdl.dlopen(libRmath), :sunif_unif_rand))
+
+    function draws(nr, nb, n)
+        ccall((:set_seed, libRmath), Cvoid, (Cuint, Cuint), 1234, 5678)
+        [ccall((:rhyper, libRmath), Float64, (Float64, Float64, Float64), nr, nb, n)
+         for _ in 1:2000]
+    end
+
+    params = [(30.0, 40.0, 5.0), (10.0, 7.0, 8.0), (500.0, 500.0, 400.0), (5.0, 5.0, 10.0)]
+    reference = map(splat(draws), params)
+    @test fetch.([Threads.@spawn draws(p...) for p in params]) == reference
+
+    unsafe_store!(cglobal((:unif_rand_ptr, libRmath), Ptr{Cvoid}),
+                  @cfunction(rand, Float64, ()))
+end

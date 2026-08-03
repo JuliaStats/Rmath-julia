@@ -37,51 +37,54 @@
 
 #include "nmath.h"
 #include "dpq.h"
+#include "rmath_tls.h"
 
-_Thread_local static double *w;
-_Thread_local static int allocated_n;
+/* The table lives in the calling thread's Rmath_tls block; see rmath_tls.h.
+ * Only the pointer and its size are per-thread state -- the table itself was
+ * always on the heap. */
 
-static void
-w_free(void)
+void Rmath_signrank_state_free(struct signrank_state *st)
 {
-    if (!w) return;
+    if (!st->w) return;
 
-    free((void *) w);
-    w = 0;
-    allocated_n = 0;
+    free((void *) st->w);
+    st->w = 0;
+    st->allocated_n = 0;
 }
 
 void signrank_free(void)
 {
-    w_free();
+    Rmath_tls *tls = Rmath_tls_ptr;
+
+    if (tls) Rmath_signrank_state_free(&tls->signrank);
 }
 
 static void
-w_init_maybe(int n)
+w_init_maybe(struct signrank_state *st, int n)
 {
     int u, c;
 
     u = n * (n + 1) / 2;
     c = (u / 2);
 
-    if (w) {
-        if(n != allocated_n) {
-	    w_free();
+    if (st->w) {
+        if(n != st->allocated_n) {
+	    Rmath_signrank_state_free(st);
 	}
 	else return;
     }
 
-    if(!w) {
-	w = (double *) calloc((size_t) c + 1, sizeof(double));
+    if(!st->w) {
+	st->w = (double *) calloc((size_t) c + 1, sizeof(double));
 #ifdef MATHLIB_STANDALONE
-	if (!w) MATHLIB_ERROR("%s", _("signrank allocation error"));
+	if (!st->w) MATHLIB_ERROR("%s", _("signrank allocation error"));
 #endif
-	allocated_n = n;
+	st->allocated_n = n;
     }
 }
 
 static double
-csignrank(int k, int n)
+csignrank(struct signrank_state *st, int k, int n)
 {
     int c, u, j;
 
@@ -99,17 +102,17 @@ csignrank(int k, int n)
 
     if (n == 1)
         return 1.;
-    if (w[0] == 1.)
-        return w[k];
+    if (st->w[0] == 1.)
+        return st->w[k];
 
-    w[0] = w[1] = 1.;
+    st->w[0] = st->w[1] = 1.;
     for(j = 2; j < n+1; ++j) {
         int i, end = imin2(j*(j+1)/2, c);
 	for(i = end; i >= j; --i)
-	    w[i] += w[i-j];
+	    st->w[i] += st->w[i-j];
     }
 
-    return w[k];
+    return st->w[k];
 }
 
 double dsignrank(double x, double n, int give_log)
@@ -131,8 +134,9 @@ double dsignrank(double x, double n, int give_log)
 	return(R_D__0);
 
     int nn = (int) n;
-    w_init_maybe(nn);
-    d = R_D_exp(log(csignrank((int) x, nn)) - n * M_LN2);
+    struct signrank_state *st = &Rmath_tls_get()->signrank;
+    w_init_maybe(st, nn);
+    d = R_D_exp(log(csignrank(st, (int) x, nn)) - n * M_LN2);
 
     return(d);
 }
@@ -157,17 +161,18 @@ double psignrank(double x, double n, int lower_tail, int log_p)
 	return(R_DT_1);
 
     int nn = (int) n;
-    w_init_maybe(nn);
+    struct signrank_state *st = &Rmath_tls_get()->signrank;
+    w_init_maybe(st, nn);
     f = exp(- n * M_LN2);
     p = 0;
     if (x <= (n * (n + 1) / 4)) {
 	for (i = 0; i <= x; i++)
-	    p += csignrank(i, nn) * f;
+	    p += csignrank(st, i, nn) * f;
     }
     else {
 	x = n * (n + 1) / 2 - x;
 	for (i = 0; i < x; i++)
-	    p += csignrank(i, nn) * f;
+	    p += csignrank(st, i, nn) * f;
 	lower_tail = !lower_tail; /* p = 1 - p; */
     }
 
@@ -199,14 +204,15 @@ double qsignrank(double x, double n, int lower_tail, int log_p)
 	x = R_DT_qIv(x); /* lower_tail,non-log "p" */
 
     int nn = (int) n;
-    w_init_maybe(nn);
+    struct signrank_state *st = &Rmath_tls_get()->signrank;
+    w_init_maybe(st, nn);
     f = exp(- n * M_LN2);
     p = 0;
     int q = 0;
     if (x <= 0.5) {
 	x = x - 10 * DBL_EPSILON;
 	for (;;) {
-	    p += csignrank(q, nn) * f;
+	    p += csignrank(st, q, nn) * f;
 	    if (p >= x)
 		break;
 	    q++;
@@ -215,7 +221,7 @@ double qsignrank(double x, double n, int lower_tail, int log_p)
     else {
 	x = 1 - x + 10 * DBL_EPSILON;
 	for (;;) {
-	    p += csignrank(q, nn) * f;
+	    p += csignrank(st, q, nn) * f;
 	    if (p > x) {
 		q = (int)(n * (n + 1) / 2 - q);
 		break;

@@ -49,6 +49,13 @@
  */
 
 #include "nmath.h"
+#include "rmath_tls.h"
+
+void Rmath_rgamma_state_init(struct rgamma_state *st)
+{
+    st->aa = 0.;
+    st->aaa = 0.;
+}
 
 #define repeat for(;;)
 
@@ -78,12 +85,6 @@ double rgamma(double a, double scale)
     const static double a6 = -0.1367177;
     const static double a7 = 0.1233795;
 
-    /* State variables :*/
-    _Thread_local static double aa = 0.;
-    _Thread_local static double aaa = 0.;
-    _Thread_local static double s, s2, d;    /* no. 1 (step 1) */
-    _Thread_local static double q0, b, si, c;/* no. 2 (step 4) */
-
     double e, p, q, r, t, u, v, w, x, ret_val;
 
     if (ISNAN(a) || ISNAN(scale))
@@ -112,6 +113,25 @@ double rgamma(double a, double scale)
     }
 
     /* --- a >= 1 : GD algorithm --- */
+
+    /* Per-thread state, persistent between calls for the same `a`.  On the
+     * heap, not in static TLS -- see rmath_tls.h.  Fetched here rather than on
+     * entry so that the a < 1 GS path above, which uses none of it, never
+     * triggers the allocation.  Aliased to upstream's names so the body below
+     * stays identical to R's, which keeps re-applying
+     * patches/thread-local.patch after `make update` mechanical; a future R
+     * release adding a local of the same name shows up as a compile error
+     * here, not as a silent change. */
+    struct rgamma_state *st = &Rmath_tls_get()->rgamma;
+#define aa	st->aa
+#define aaa	st->aaa
+#define s	st->s
+#define s2	st->s2
+#define d	st->d
+#define q0	st->q0
+#define b	st->b
+#define si	st->si
+#define c	st->c
 
     /* Step 1: Recalculations of s2, s, d if a has changed */
     if (a != aa) {

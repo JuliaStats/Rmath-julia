@@ -42,6 +42,7 @@
  */
 
 #include "nmath.h"
+#include "rmath_tls.h"
 #include "dpq.h"
 #include <limits.h>
 
@@ -79,6 +80,13 @@ static double afc(int i)
 	(0.0833333333333333 - 0.00277777777777778 / i2) / di;
 }
 
+void Rmath_rhyper_state_init(struct rhyper_state *st)
+{
+    st->ks = -1;
+    st->n1s = -1;
+    st->n2s = -1;
+}
+
 //     rhyper(NR, NB, n) -- NR 'red', NB 'blue', n drawn, how many are 'red'
 double rhyper(double nn1in, double nn2in, double kkin)
 {
@@ -87,16 +95,6 @@ double rhyper(double nn1in, double nn2in, double kkin)
     int nn1, nn2, kk;
     int ix; // return value (coerced to double at the very end)
     Rboolean setup1, setup2;
-
-    _Thread_local static int ks = -1, n1s = -1, n2s = -1;
-    _Thread_local static int m, minjx, maxjx;
-    _Thread_local static int k, n1, n2; // <- not allowing larger integer par
-    _Thread_local static double N;
-
-    // II :
-    _Thread_local static double w;
-    // III:
-    _Thread_local static double a, d, s, xl, xr, kl, kr, lamdl, lamdr, p1, p2, p3;
 
     /* check parameter validity */
 
@@ -125,6 +123,39 @@ double rhyper(double nn1in, double nn2in, double kkin)
     nn1 = (int)nn1in;
     nn2 = (int)nn2in;
     kk  = (int)kkin;
+
+    /* Per-thread state, persistent between calls for the same parameters.  On
+     * the heap, not in static TLS -- see rmath_tls.h.  Fetched after the
+     * INT_MAX escape above, which delegates to rbinom() or qhyper() and uses
+     * none of it, so that path never allocates.  Aliased to upstream's names so
+     * the body below stays identical to R's, which keeps re-applying
+     * patches/thread-local.patch after `make update` mechanical; a future R
+     * release adding a local of the same name shows up as a compile error here,
+     * not as a silent change. */
+    struct rhyper_state *st = &Rmath_tls_get()->rhyper;
+#define ks	st->ks
+#define n1s	st->n1s
+#define n2s	st->n2s
+#define m	st->m
+#define minjx	st->minjx
+#define maxjx	st->maxjx
+#define k	st->k
+#define n1	st->n1
+#define n2	st->n2
+#define N	st->N
+#define w	st->w
+#define a	st->a
+#define d	st->d
+#define s	st->s
+#define xl	st->xl
+#define xr	st->xr
+#define kl	st->kl
+#define kr	st->kr
+#define lamdl	st->lamdl
+#define lamdr	st->lamdr
+#define p1	st->p1
+#define p2	st->p2
+#define p3	st->p3
 
     /* if new parameter values, initialize */
     if (nn1 != n1s || nn2 != n2s) { // n1 | n2 is changed: setup all
